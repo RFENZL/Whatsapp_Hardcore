@@ -77,7 +77,7 @@ async function loadUsers() {
 }
 async function loadUnread() {
   try {
-    const convos = await api(`/api/conversations`, { token: props.token })
+    const convos = await api(`/api/messages/conversations`, { token: props.token })
     const map = {}
     for (const c of convos) map[c.otherUser._id] = c.unread || 0
     unreadMap.value = map

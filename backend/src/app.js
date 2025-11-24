@@ -10,6 +10,8 @@ const Sentry = require('@sentry/node');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const messageRoutes = require('./routes/messages');
+const contactRoutes = require('./routes/contacts');
+const uploadRoutes = require('./routes/upload');
 
 const app = express();
 
@@ -33,6 +35,13 @@ app.use(morgan('dev'));
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/contacts', contactRoutes);
+app.use('/api/upload', uploadRoutes);
+
+const uploadsPath = path.resolve(__dirname, '..', '..', 'uploads');
+if (fs.existsSync(uploadsPath)) {
+  app.use('/uploads', express.static(uploadsPath));
+}
 
 const distPath = path.resolve(__dirname, '..', '..', 'frontend', 'dist');
 const indexHtml = path.join(distPath, 'index.html');

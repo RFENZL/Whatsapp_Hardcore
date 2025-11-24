@@ -22,7 +22,7 @@
     </div>
 
     <div class="sticky bottom-0 z-10 border-t bg-gray-50">
-      <Composer :key="currentPeerId" @send="send" @typing="typingPing" :disabled="!socketReady || !peer" />
+      <Composer :key="currentPeerId" @send="send" @send-file="sendFile" @typing="typingPing" :disabled="!socketReady || !peer" />
     </div>
   </div>
 </template>
@@ -32,7 +32,7 @@ import { onMounted, onUnmounted, ref, watch, computed, nextTick, watchEffect } f
 import Avatar from "./Avatar.vue"
 import Composer from "./Composer.vue"
 import MessageBubble from "./MessageBubble.vue"
-import { api } from "../lib/api.js"
+import { api, uploadFile } from "../lib/api.js"
 
 const props = defineProps({ me: Object, peer: Object, token: String, socket: Object })
 
@@ -169,6 +169,64 @@ async function send(content){
       body: { recipient_id: props.peer._id, content, clientId }
     })
   } catch(e) {}
+}
+
+async function sendFile(file){
+  if (!file || !props.peer?._id) return;
+
+  const baseId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+  const clientId = baseId + '-file';
+
+  const mime = file.type || '';
+  let type = 'file';
+  if (mime.startsWith('image/')) type = 'image';
+  else if (mime.startsWith('video/')) type = 'video';
+
+  const local = {
+    _id: `local-${clientId}`,
+    clientId,
+    sender: String(props.me._id),
+    recipient: String(props.peer._id),
+    content: file.name,
+    type,
+    mediaUrl: null,
+    mediaName: file.name,
+    mediaSize: file.size,
+    mediaMimeType: mime,
+    createdAt: new Date().toISOString(),
+    status: 'sent',
+    edited: false,
+    deleted: false
+  };
+
+  messages.value = [...messages.value, local];
+  await nextTick();
+  scrollBottom();
+
+  try {
+    const uploaded = await uploadFile("/api/upload", { token: props.token, file });
+    const body = {
+      recipient_id: props.peer._id,
+      content: file.name,
+      clientId,
+      type,
+      mediaUrl: uploaded.url,
+      mediaName: uploaded.originalName || file.name,
+      mediaSize: uploaded.size,
+      mediaMimeType: uploaded.mimeType || mime
+    };
+    await api(`/api/messages`, {
+      method: 'POST',
+      token: props.token,
+      body
+    });
+  } catch (e) {
+    const idx = messages.value.findIndex(x => x.clientId === clientId);
+    if (idx !== -1) {
+      messages.value.splice(idx, 1);
+    }
+    console.error(e);
+  }
 }
 
 function typingPing(){
