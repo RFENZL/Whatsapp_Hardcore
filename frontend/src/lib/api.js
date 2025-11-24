@@ -68,3 +68,38 @@ export async function uploadFile(path, { token, file } = {}) {
 
   return data;
 }
+
+// === Gestion des contacts ===
+export async function getContacts(token) {
+  return api("/api/contacts", { token });
+}
+
+export async function addContact(token, contactId) {
+  return api("/api/contacts", { method: "POST", token, body: { contact_id: contactId } });
+}
+
+export async function removeContact(token, contactId) {
+  return api(`/api/contacts/${contactId}`, { method: "DELETE", token });
+}
+
+export async function blockContact(token, contactId) {
+  return api(`/api/contacts/${contactId}/block`, { method: "POST", token });
+}
+
+export async function unblockContact(token, contactId) {
+  return api(`/api/contacts/${contactId}/unblock`, { method: "POST", token });
+}
+
+// === Gestion des sessions ===
+export async function getSessions(token) {
+  return api("/api/users/sessions", { token });
+}
+
+export async function deleteSession(token, sessionId) {
+  return api(`/api/users/sessions/${sessionId}`, { method: "DELETE", token });
+}
+
+// === Suppression de compte ===
+export async function deleteAccount(token) {
+  return api("/api/users/account", { method: "DELETE", token });
+}

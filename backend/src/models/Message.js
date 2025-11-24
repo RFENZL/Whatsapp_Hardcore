@@ -2,7 +2,13 @@ const mongoose = require('mongoose');
 
 const MessageSchema = new mongoose.Schema({
   sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-  recipient: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  
+  // Pour messages directs
+  recipient: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+  
+  // Pour messages de groupe
+  conversation: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation', default: null, index: true },
+  group: { type: mongoose.Schema.Types.ObjectId, ref: 'Group', default: null, index: true },
 
   // Texte principal
   content: { type: String, maxlength: 5000, default: '' },
@@ -10,22 +16,48 @@ const MessageSchema = new mongoose.Schema({
   // Type de message (texte / média)
   type: {
     type: String,
-    enum: ['text', 'image', 'video', 'file'],
+    enum: ['text', 'image', 'video', 'audio', 'file', 'system'],
     default: 'text'
   },
 
-  // Infos média optionnelles
+  // Référence au média (si type != 'text')
+  media: { type: mongoose.Schema.Types.ObjectId, ref: 'Media', default: null },
+
+  // Infos média optionnelles (rétrocompatibilité)
   mediaUrl: { type: String, default: '' },
   mediaName: { type: String, default: '' },
   mediaSize: { type: Number, default: 0 },
   mediaMimeType: { type: String, default: '' },
 
+  // Message de réponse (reply/quote)
+  replyTo: { type: mongoose.Schema.Types.ObjectId, ref: 'Message', default: null },
+
+  // Message transféré
+  forwardedFrom: { type: mongoose.Schema.Types.ObjectId, ref: 'Message', default: null },
+
+  // Mentions (@user)
+  mentions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+
   createdAt: { type: Date, default: Date.now, index: true },
-  status: { type: String, enum: ['sent', 'received', 'read'], default: 'sent' },
+  
+  // Statuts de lecture par utilisateur (pour groupes)
+  readBy: [{
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    readAt: { type: Date, default: Date.now }
+  }],
+  
+  status: { type: String, enum: ['sent', 'delivered', 'read'], default: 'sent' },
   edited: { type: Boolean, default: false },
-  deleted: { type: Boolean, default: false }
+  editedAt: { type: Date, default: null },
+  deleted: { type: Boolean, default: false },
+  deletedAt: { type: Date, default: null },
+  
+  // Suppression pour moi uniquement
+  deletedFor: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
 });
 
 MessageSchema.index({ sender: 1, recipient: 1, createdAt: -1 });
+MessageSchema.index({ conversation: 1, createdAt: -1 });
+MessageSchema.index({ group: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Message', MessageSchema);

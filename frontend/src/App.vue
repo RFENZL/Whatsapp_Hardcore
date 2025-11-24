@@ -17,10 +17,11 @@
   </div>
   <div v-else class="w-full h-screen overflow-hidden grid grid-cols-12">
     <div class="col-span-4 xl:col-span-3 bg-white border-r h-screen sticky top-0 overflow-y-auto">
-      <Sidebar :me="auth.user" :token="auth.token" :onSelectPeer="setPeer" :currentPeer="peer" :socket="socket" />
+      <Sidebar :me="auth.user" :token="auth.token" :onSelectPeer="setPeer" :currentPeer="peer" :socket="socket" @openSettings="showSettings = true" />
     </div>
     <div class="col-span-8 xl:col-span-9 bg-gray-100 h-screen overflow-hidden">
-      <div v-if="!peer" class="h-full grid place-items-center text-gray-500">
+      <Settings v-if="showSettings" :me="auth.user" :token="auth.token" @close="showSettings = false" @accountDeleted="onAccountDeleted" @profileUpdated="onProfileUpdated" />
+      <div v-else-if="!peer" class="h-full grid place-items-center text-gray-500">
         <div class="text-center">
           <div class="text-3xl font-semibold mb-2">WhatsApp-like Chat</div>
           <p>Choisissez un contact à gauche pour démarrer la conversation.</p>
@@ -36,12 +37,14 @@ import { onMounted } from 'vue'
 import { ref, watch } from "vue"
 import Sidebar from "./components/Sidebar.vue"
 import ChatPane from "./components/ChatPane.vue"
+import Settings from "./components/Settings.vue"
 import { useLocalStorage } from "./lib/storage.js"
 import { api } from "./lib/api.js"
 import { createSocket } from "./lib/socket.js"
 const auth = useLocalStorage("tpchat_auth", null)
 const peer = ref(null)
 const socket = ref(null)
+const showSettings = ref(false)
 const tab = ref("login")
 const email = ref("")
 const username = ref("")
@@ -65,6 +68,15 @@ async function logout(){
   try { await api("/api/auth/logout", { method: "POST", token: auth.value?.token }) } catch {}
   auth.value = null
   socket.value && socket.value.close()
+}
+function onAccountDeleted(){
+  alert('Votre compte a été supprimé')
+  auth.value = null
+  socket.value && socket.value.close()
+  window.location.reload()
+}
+function onProfileUpdated(updatedUser){
+  auth.value = { ...auth.value, user: { ...auth.value.user, ...updatedUser } }
 }
 watch(() => auth.value?.token, (t) => { if (t) socket.value = createSocket(t) })
 onMounted(() => { const t = auth.value?.token; if (t) socket.value = createSocket(t) })

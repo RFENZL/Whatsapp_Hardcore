@@ -1,0 +1,357 @@
+<template>
+  <div class="w-full h-full bg-white overflow-hidden flex flex-col">
+    <!-- Header -->
+    <div class="px-4 py-3 border-b bg-white flex items-center justify-between">
+      <h2 class="text-xl font-semibold">Paramètres</h2>
+      <button @click="$emit('close')" class="text-gray-500 hover:text-gray-700">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex border-b bg-gray-50 px-4">
+      <button 
+        v-for="t in tabs" 
+        :key="t.id"
+        @click="activeTab = t.id"
+        :class="['px-4 py-3 text-sm font-medium transition-colors border-b-2', 
+          activeTab === t.id 
+            ? 'text-emerald-600 border-emerald-600' 
+            : 'text-gray-600 border-transparent hover:text-gray-900']"
+      >
+        {{ t.label }}
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div class="flex-1 overflow-y-auto p-4">
+      <!-- Profil Tab -->
+      <div v-if="activeTab === 'profile'" class="max-w-xl space-y-4">
+        <h3 class="text-lg font-medium mb-4">Modifier le profil</h3>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Nom d'utilisateur</label>
+          <input 
+            v-model="profileForm.username" 
+            class="w-full border rounded-lg px-3 py-2"
+            placeholder="Votre nom d'utilisateur"
+          />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Avatar (URL)</label>
+          <input 
+            v-model="profileForm.avatar" 
+            class="w-full border rounded-lg px-3 py-2"
+            placeholder="https://..."
+          />
+        </div>
+        <div class="flex gap-2">
+          <button 
+            @click="updateProfile" 
+            :disabled="profileLoading"
+            class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50"
+          >
+            {{ profileLoading ? 'Enregistrement...' : 'Enregistrer' }}
+          </button>
+          <p v-if="profileSuccess" class="text-sm text-emerald-600 self-center">✓ Profil mis à jour</p>
+          <p v-if="profileError" class="text-sm text-red-600 self-center">{{ profileError }}</p>
+        </div>
+      </div>
+
+      <!-- Contacts Tab -->
+      <div v-if="activeTab === 'contacts'" class="max-w-2xl space-y-4">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-medium">Mes contacts</h3>
+          <button @click="loadContacts" class="text-sm text-emerald-600 hover:underline">Actualiser</button>
+        </div>
+        
+        <div v-if="contactsLoading" class="text-center py-8 text-gray-500">Chargement...</div>
+        <div v-else-if="contacts.length === 0" class="text-center py-8 text-gray-500">
+          Aucun contact pour le moment
+        </div>
+        <div v-else class="space-y-2">
+          <div 
+            v-for="c in contacts" 
+            :key="c._id"
+            class="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
+          >
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center font-medium">
+                {{ c.contact.username.charAt(0).toUpperCase() }}
+              </div>
+              <div>
+                <div class="font-medium">{{ c.contact.username }}</div>
+                <div class="text-xs text-gray-500">
+                  <span :class="c.blocked ? 'text-red-600' : ''">
+                    {{ c.blocked ? '🚫 Bloqué' : '✓ Actif' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button 
+                v-if="!c.blocked"
+                @click="blockContact(c.contact._id)"
+                class="text-xs bg-orange-100 text-orange-700 px-3 py-1 rounded hover:bg-orange-200"
+              >
+                Bloquer
+              </button>
+              <button 
+                v-else
+                @click="unblockContact(c.contact._id)"
+                class="text-xs bg-emerald-100 text-emerald-700 px-3 py-1 rounded hover:bg-emerald-200"
+              >
+                Débloquer
+              </button>
+              <button 
+                @click="removeContact(c.contact._id)"
+                class="text-xs bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200"
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sessions Tab -->
+      <div v-if="activeTab === 'sessions'" class="max-w-2xl space-y-4">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-medium">Historique des connexions</h3>
+          <button @click="loadSessions" class="text-sm text-emerald-600 hover:underline">Actualiser</button>
+        </div>
+        
+        <div v-if="sessionsLoading" class="text-center py-8 text-gray-500">Chargement...</div>
+        <div v-else-if="sessions.length === 0" class="text-center py-8 text-gray-500">
+          Aucune session enregistrée
+        </div>
+        <div v-else class="space-y-2">
+          <div 
+            v-for="s in sessions" 
+            :key="s._id"
+            class="flex items-start justify-between p-3 border rounded-lg hover:bg-gray-50"
+          >
+            <div class="flex-1">
+              <div class="flex items-center gap-2 mb-1">
+                <span :class="['text-xs px-2 py-0.5 rounded-full', s.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600']">
+                  {{ s.isActive ? 'Active' : 'Terminée' }}
+                </span>
+                <span class="text-sm font-medium">{{ formatDate(s.loginTime) }}</span>
+              </div>
+              <div class="text-xs text-gray-600 space-y-1">
+                <div>📍 IP: {{ s.ipAddress || 'N/A' }}</div>
+                <div>💻 {{ truncate(s.userAgent, 60) || 'N/A' }}</div>
+                <div v-if="s.logoutTime">🚪 Déconnexion: {{ formatDate(s.logoutTime) }}</div>
+              </div>
+            </div>
+            <button 
+              @click="deleteSessionItem(s._id)"
+              class="ml-2 text-xs bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200 shrink-0"
+            >
+              Supprimer
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Account Tab -->
+      <div v-if="activeTab === 'account'" class="max-w-xl space-y-4">
+        <h3 class="text-lg font-medium mb-4 text-red-600">Zone de danger</h3>
+        <div class="border border-red-200 rounded-lg p-4 bg-red-50">
+          <h4 class="font-medium text-red-800 mb-2">Supprimer mon compte</h4>
+          <p class="text-sm text-red-700 mb-4">
+            Cette action est irréversible. Toutes vos données (messages, contacts, sessions) seront définitivement supprimées.
+          </p>
+          <div v-if="!confirmDelete">
+            <button 
+              @click="confirmDelete = true"
+              class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium"
+            >
+              Supprimer mon compte
+            </button>
+          </div>
+          <div v-else class="space-y-3">
+            <p class="text-sm font-medium text-red-800">Êtes-vous absolument sûr ?</p>
+            <div class="flex gap-2">
+              <button 
+                @click="deleteAccountConfirmed"
+                :disabled="deleteLoading"
+                class="bg-red-700 hover:bg-red-800 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50"
+              >
+                {{ deleteLoading ? 'Suppression...' : 'Oui, supprimer définitivement' }}
+              </button>
+              <button 
+                @click="confirmDelete = false"
+                class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg font-medium"
+              >
+                Annuler
+              </button>
+            </div>
+            <p v-if="deleteError" class="text-sm text-red-700">{{ deleteError }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import { api, getSessions, deleteSession, getContacts, blockContact as apiBlockContact, unblockContact as apiUnblockContact, removeContact as apiRemoveContact, deleteAccount as apiDeleteAccount } from '../lib/api.js'
+
+const props = defineProps({ me: Object, token: String })
+const emit = defineEmits(['close', 'accountDeleted', 'profileUpdated'])
+
+const tabs = [
+  { id: 'profile', label: 'Profil' },
+  { id: 'contacts', label: 'Contacts' },
+  { id: 'sessions', label: 'Sécurité' },
+  { id: 'account', label: 'Compte' }
+]
+
+const activeTab = ref('profile')
+
+// Profile
+const profileForm = ref({ username: '', avatar: '' })
+const profileLoading = ref(false)
+const profileSuccess = ref(false)
+const profileError = ref('')
+
+// Contacts
+const contacts = ref([])
+const contactsLoading = ref(false)
+
+// Sessions
+const sessions = ref([])
+const sessionsLoading = ref(false)
+
+// Account deletion
+const confirmDelete = ref(false)
+const deleteLoading = ref(false)
+const deleteError = ref('')
+
+onMounted(() => {
+  profileForm.value.username = props.me.username || ''
+  profileForm.value.avatar = props.me.avatar || ''
+})
+
+async function updateProfile() {
+  profileLoading.value = true
+  profileSuccess.value = false
+  profileError.value = ''
+  try {
+    const data = await api('/api/users/profile', {
+      method: 'PUT',
+      token: props.token,
+      body: {
+        username: profileForm.value.username,
+        avatar: profileForm.value.avatar
+      }
+    })
+    profileSuccess.value = true
+    emit('profileUpdated', data)
+    setTimeout(() => { profileSuccess.value = false }, 3000)
+  } catch (e) {
+    profileError.value = e.message
+  } finally {
+    profileLoading.value = false
+  }
+}
+
+async function loadContacts() {
+  contactsLoading.value = true
+  try {
+    contacts.value = await getContacts(props.token)
+  } catch (e) {
+    console.error(e)
+  } finally {
+    contactsLoading.value = false
+  }
+}
+
+async function blockContact(contactId) {
+  try {
+    await apiBlockContact(props.token, contactId)
+    await loadContacts()
+  } catch (e) {
+    alert('Erreur: ' + e.message)
+  }
+}
+
+async function unblockContact(contactId) {
+  try {
+    await apiUnblockContact(props.token, contactId)
+    await loadContacts()
+  } catch (e) {
+    alert('Erreur: ' + e.message)
+  }
+}
+
+async function removeContact(contactId) {
+  if (!confirm('Supprimer ce contact ?')) return
+  try {
+    await apiRemoveContact(props.token, contactId)
+    await loadContacts()
+  } catch (e) {
+    alert('Erreur: ' + e.message)
+  }
+}
+
+async function loadSessions() {
+  sessionsLoading.value = true
+  try {
+    sessions.value = await getSessions(props.token)
+  } catch (e) {
+    console.error(e)
+  } finally {
+    sessionsLoading.value = false
+  }
+}
+
+async function deleteSessionItem(sessionId) {
+  if (!confirm('Supprimer cette session de l\'historique ?')) return
+  try {
+    await deleteSession(props.token, sessionId)
+    await loadSessions()
+  } catch (e) {
+    alert('Erreur: ' + e.message)
+  }
+}
+
+async function deleteAccountConfirmed() {
+  deleteLoading.value = true
+  deleteError.value = ''
+  try {
+    await apiDeleteAccount(props.token)
+    emit('accountDeleted')
+  } catch (e) {
+    deleteError.value = e.message
+  } finally {
+    deleteLoading.value = false
+  }
+}
+
+function formatDate(date) {
+  if (!date) return 'N/A'
+  return new Date(date).toLocaleString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+function truncate(str, len) {
+  if (!str) return ''
+  return str.length > len ? str.substring(0, len) + '...' : str
+}
+
+// Auto-load on tab change
+import { watch } from 'vue'
+watch(activeTab, (tab) => {
+  if (tab === 'contacts' && contacts.value.length === 0) loadContacts()
+  if (tab === 'sessions' && sessions.value.length === 0) loadSessions()
+})
+</script>

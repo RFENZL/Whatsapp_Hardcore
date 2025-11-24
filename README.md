@@ -6,7 +6,7 @@ Stack :
 - Monitoring : **Sentry** (intégration backend)
 - Tests : **Mocha + Chai + nyc**, MongoDB en mémoire.
 
-Ce projet correspond au sujet *TP COMPLET : WHATSAPP CLONE EN VUE.JS – MEVN* et couvre :
+Ce projet couvre :
 - Authentification (register/login, JWT, profil de base).
 - Conversations one-to-one avec messages temps réel.
 - Statut en ligne/hors ligne, last seen, typing.

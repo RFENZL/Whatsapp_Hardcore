@@ -1,7 +1,5 @@
 # Documentation API (REST & WebSocket)
 
-Cette documentation est une vue d’ensemble, alignée avec la Section 15.3 du sujet.
-
 ## Authentification
 
 ### POST `/api/auth/register`

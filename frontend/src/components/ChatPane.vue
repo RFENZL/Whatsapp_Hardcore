@@ -8,9 +8,21 @@
           <div class="font-medium truncate">{{ peer.username }}</div>
         </div>
       </div>
-      <span :class="['px-2 py-0.5 rounded-full text-[11px] whitespace-nowrap', peer.status==='online' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600']">
-        {{ peer.status }}
-      </span>
+      <div class="flex items-center gap-2">
+        <span :class="['px-2 py-0.5 rounded-full text-[11px] whitespace-nowrap', peer.status==='online' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600']">
+          {{ peer.status }}
+        </span>
+        <button @click="toggleMenu" class="text-gray-600 hover:text-gray-900 relative" title="Actions">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+          </svg>
+          <div v-if="showMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-50">
+            <button @click="handleAddContact" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm">➕ Ajouter aux contacts</button>
+            <button @click="handleBlockContact" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-orange-600">🚫 Bloquer</button>
+            <button @click="handleRemoveContact" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-red-600">🗑️ Supprimer</button>
+          </div>
+        </button>
+      </div>
     </div>
 
     <div ref="listRef" class="flex-1 overflow-y-auto bg-gray-50 p-4 space-y-2 pb-28">
@@ -32,12 +44,13 @@ import { onMounted, onUnmounted, ref, watch, computed, nextTick, watchEffect } f
 import Avatar from "./Avatar.vue"
 import Composer from "./Composer.vue"
 import MessageBubble from "./MessageBubble.vue"
-import { api, uploadFile } from "../lib/api.js"
+import { api, uploadFile, addContact, blockContact as apiBlockContact, removeContact as apiRemoveContact } from "../lib/api.js"
 
 const props = defineProps({ me: Object, peer: Object, token: String, socket: Object })
 
 const messages = ref([])
 const page = ref(1)
+const showMenu = ref(false)
 const hasMore = ref(true)
 const typing = ref(false)
 const listRef = ref(null)
@@ -234,4 +247,51 @@ function typingPing(){
     props.socket.emit('typing', { to: props.peer._id })
   }
 }
+
+function toggleMenu() {
+  showMenu.value = !showMenu.value
+}
+
+async function handleAddContact() {
+  showMenu.value = false
+  try {
+    await addContact(props.token, props.peer._id)
+    alert('Contact ajouté avec succès')
+  } catch (e) {
+    alert('Erreur: ' + e.message)
+  }
+}
+
+async function handleBlockContact() {
+  showMenu.value = false
+  if (!confirm(`Bloquer ${props.peer.username} ?`)) return
+  try {
+    await apiBlockContact(props.token, props.peer._id)
+    alert('Contact bloqué')
+  } catch (e) {
+    alert('Erreur: ' + e.message)
+  }
+}
+
+async function handleRemoveContact() {
+  showMenu.value = false
+  if (!confirm(`Supprimer ${props.peer.username} de vos contacts ?`)) return
+  try {
+    await apiRemoveContact(props.token, props.peer._id)
+    alert('Contact supprimé')
+  } catch (e) {
+    alert('Erreur: ' + e.message)
+  }
+}
+
+// Fermer le menu si on clique ailleurs
+onMounted(() => {
+  const closeMenu = (e) => {
+    if (showMenu.value && !e.target.closest('button')) {
+      showMenu.value = false
+    }
+  }
+  document.addEventListener('click', closeMenu)
+  return () => document.removeEventListener('click', closeMenu)
+})
 </script>
