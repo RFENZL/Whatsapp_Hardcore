@@ -1,2 +1,2 @@
 # Whatsapp_Hardcore
-Un projet tard le hard core
+Un projet tar le hard core
