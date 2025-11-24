@@ -12,7 +12,9 @@
       </div>
       <div class="flex items-center gap-2">
         <span :class="['px-2 py-0.5 rounded-full text-[11px] whitespace-nowrap', props.peer?.status==='online' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600']">
-          {{ props.peer?.status }}</span>
+          <template v-if="props.peer && props.peer.isGroup">{{ props.peer?.status }} <span v-if="onlineCount">• {{ onlineCount }} en ligne</span></template>
+          <template v-else>{{ props.peer?.status }}</template>
+        </span>
 
         <template v-if="props.peer && props.peer.isGroup">
           <button @click="showAddMembersModal = true" class="text-gray-600 hover:text-gray-900" title="Ajouter des membres">
@@ -76,6 +78,26 @@ const listRef = ref(null)
 const currentPeerId = ref(null)
 const loadedFor = ref(null)
 const socketReady = computed(() => !!(props.socket && props.socket.connected))
+const onlineCount = ref(0)
+
+async function loadGroupStatus() {
+  try {
+    if (!props.peer || !props.peer.isGroup) { onlineCount.value = 0; return }
+    const conv = await api(`/api/conversations/${props.peer._id}`, { token: props.token })
+    const groupId = conv && conv.group ? (conv.group._id || conv.group) : null
+    if (!groupId) { onlineCount.value = 0; return }
+    const group = await api(`/api/groups/${groupId}`, { token: props.token })
+    if (!group || !group.members) { onlineCount.value = 0; return }
+    const count = group.members.reduce((acc, m) => {
+      const u = m.user
+      const status = (typeof u === 'object') ? u.status : null
+      return acc + (status === 'online' ? 1 : 0)
+    }, 0)
+    onlineCount.value = count
+  } catch (e) {
+    onlineCount.value = 0
+  }
+}
 
 function scrollBottom() {
   const el = listRef.value
@@ -153,6 +175,8 @@ watch(() => props.peer?._id, async (id) => {
   hasMore.value = true
   messages.value = []
   loadedFor.value = null
+  // refresh the online count for groups
+  await loadGroupStatus()
 })
 
 watchEffect(async () => {
@@ -218,10 +242,16 @@ watch(() => props.socket, (s) => {
   s.on('message:new', hMsg)
   s.on('typing', hTyping)
   s.on('typing-stopped', hTypingStop)
+  const hStatus = (payload) => {
+    // payload: { userId, status }
+    if (props.peer && props.peer.isGroup) loadGroupStatus().catch(()=>{})
+  }
+  s.on('user-status', hStatus)
   return () => {
     s.off('message:new', hMsg)
     s.off('typing', hTyping)
     s.off('typing-stopped', hTypingStop)
+    s.off('user-status', hStatus)
   }
 }, { immediate: true })
 
