@@ -38,8 +38,8 @@ export async function api(path, { method = "GET", token, body } = {}) {
   return isJSON ? data : { ok: true, data };
 }
 
-export async function uploadFile(path, { token, file } = {}) {
-  const url = (API_BASE || "") + path;
+export async function uploadFile(token, file) {
+  const url = (API_BASE || "") + "/api/upload";
   const formData = new FormData();
   formData.append("file", file);
 

@@ -46,10 +46,22 @@ app.use('/api/groups', groupRoutes);
 app.use('/api/medias', mediaRoutes);
 app.use('/api/reactions', reactionRoutes);
 
-const uploadsPath = path.resolve(__dirname, '..', '..', 'uploads');
-if (fs.existsSync(uploadsPath)) {
-  app.use('/uploads', express.static(uploadsPath));
+// Servir les fichiers uploadés avec CORS
+const uploadsPath = path.resolve(__dirname, '..', 'uploads');
+if (!fs.existsSync(uploadsPath)) {
+  fs.mkdirSync(uploadsPath, { recursive: true });
 }
+
+// Middleware CORS spécifique pour les uploads
+app.use('/uploads', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', process.env.CLIENT_ORIGIN || '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+});
+
+app.use('/uploads', express.static(uploadsPath));
 
 const distPath = path.resolve(__dirname, '..', '..', 'frontend', 'dist');
 const indexHtml = path.join(distPath, 'index.html');

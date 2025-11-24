@@ -217,7 +217,7 @@ async function sendFile(file){
   scrollBottom();
 
   try {
-    const uploaded = await uploadFile("/api/upload", { token: props.token, file });
+    const uploaded = await uploadFile(props.token, file);
     const body = {
       recipient_id: props.peer._id,
       content: file.name,
