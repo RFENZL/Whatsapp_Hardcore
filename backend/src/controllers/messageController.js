@@ -108,12 +108,13 @@ exports.create = async (req, res) => {
   conversation.lastMessageAt = msg.createdAt;
   
   // Incrémenter les compteurs de non-lus
-  conversation.participants.forEach(participantId => {
-    if (String(participantId) !== String(req.user._id)) {
-      const currentCount = conversation.unreadCount.get(String(participantId)) || 0;
-      conversation.unreadCount.set(String(participantId), currentCount + 1);
-    }
-  });
+    conversation.participants.forEach(participant => {
+      const participantId = participant && participant._id ? String(participant._id) : String(participant);
+      if (participantId !== String(req.user._id)) {
+        const currentCount = conversation.unreadCount.get(participantId) || 0;
+        conversation.unreadCount.set(participantId, currentCount + 1);
+      }
+    });
   
   await conversation.save();
 
@@ -142,8 +143,9 @@ exports.create = async (req, res) => {
       clientId: clientId || null
     };
 
-    conversation.participants.forEach(participantId => {
-      io.to(String(participantId)).emit('message:new', payload);
+    conversation.participants.forEach(participant => {
+      const pid = participant && participant._id ? String(participant._id) : String(participant);
+      io.to(pid).emit('message:new', payload);
     });
   }
 
@@ -247,7 +249,7 @@ exports.search = async (req, res) => {
     
     // Vérifier l'accès à la conversation
     const conversation = await Conversation.findById(conversationId);
-    if (!conversation || !conversation.participants.includes(req.user._id)) {
+    if (!conversation || !conversation.participants.some(p => String(p._id || p) === String(req.user._id))) {
       return res.status(403).json({ error: 'Access denied' });
     }
   }
@@ -282,7 +284,7 @@ exports.getByConversation = async (req, res) => {
     return res.status(404).json({ error: 'Conversation not found' });
   }
 
-  if (!conversation.participants.includes(req.user._id)) {
+  if (!conversation.participants.some(p => String(p._id || p) === String(req.user._id))) {
     return res.status(403).json({ error: 'Access denied' });
   }
 
@@ -323,7 +325,7 @@ exports.forward = async (req, res) => {
   if (String(originalMessage.sender) !== String(req.user._id) &&
       String(originalMessage.recipient) !== String(req.user._id)) {
     const conversation = await Conversation.findById(originalMessage.conversation);
-    if (!conversation || !conversation.participants.includes(req.user._id)) {
+    if (!conversation || !conversation.participants.some(p => String(p._id || p) === String(req.user._id))) {
       return res.status(403).json({ error: 'Access denied' });
     }
   }
@@ -334,7 +336,7 @@ exports.forward = async (req, res) => {
   for (const convId of conversationIds) {
     const targetConversation = await Conversation.findById(convId);
     
-    if (!targetConversation || !targetConversation.participants.includes(req.user._id)) {
+    if (!targetConversation || !targetConversation.participants.some(p => String(p._id || p) === String(req.user._id))) {
       continue; // Skip les conversations non accessibles
     }
 
@@ -356,10 +358,11 @@ exports.forward = async (req, res) => {
     targetConversation.lastMessage = newMessage._id;
     targetConversation.lastMessageAt = newMessage.createdAt;
     
-    targetConversation.participants.forEach(participantId => {
-      if (String(participantId) !== String(req.user._id)) {
-        const currentCount = targetConversation.unreadCount.get(String(participantId)) || 0;
-        targetConversation.unreadCount.set(String(participantId), currentCount + 1);
+    targetConversation.participants.forEach(participant => {
+      const pid = participant && participant._id ? String(participant._id) : String(participant);
+      if (pid !== String(req.user._id)) {
+        const currentCount = targetConversation.unreadCount.get(pid) || 0;
+        targetConversation.unreadCount.set(pid, currentCount + 1);
       }
     });
     
@@ -369,8 +372,9 @@ exports.forward = async (req, res) => {
 
     // Notifier via Socket.IO
     if (io) {
-      targetConversation.participants.forEach(participantId => {
-        io.to(String(participantId)).emit('message:new', {
+      targetConversation.participants.forEach(participant => {
+        const pid = participant && participant._id ? String(participant._id) : String(participant);
+        io.to(pid).emit('message:new', {
           _id: String(newMessage._id),
           sender: String(newMessage.sender),
           conversation: String(newMessage.conversation),

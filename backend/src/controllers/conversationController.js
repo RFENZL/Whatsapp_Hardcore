@@ -75,8 +75,8 @@ exports.list = async (req, res) => {
       lastMessage: conv.lastMessage,
       lastMessageAt: conv.lastMessageAt,
       unreadCount,
-      isArchived: conv.archivedBy.includes(userId),
-      isMuted: conv.mutedBy.includes(userId)
+      isArchived: conv.archivedBy.some(id => String(id) === String(userId)),
+      isMuted: conv.mutedBy.some(id => String(id) === String(userId))
     };
   });
 
@@ -102,8 +102,8 @@ exports.getById = async (req, res) => {
   res.json({
     ...conversation.toObject(),
     unreadCount,
-    isArchived: conversation.archivedBy.includes(req.user._id),
-    isMuted: conversation.mutedBy.includes(req.user._id)
+    isArchived: conversation.archivedBy.some(id => String(id) === String(req.user._id)),
+    isMuted: conversation.mutedBy.some(id => String(id) === String(req.user._id))
   });
 };
 
@@ -113,11 +113,11 @@ exports.archive = async (req, res) => {
   
   if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
   
-  if (!conversation.participants.includes(req.user._id)) {
+  if (!conversation.participants.some(p => String(p._id || p) === String(req.user._id))) {
     return res.status(403).json({ error: 'Access denied' });
   }
 
-  if (!conversation.archivedBy.includes(req.user._id)) {
+  if (!conversation.archivedBy.some(id => String(id) === String(req.user._id))) {
     conversation.archivedBy.push(req.user._id);
     await conversation.save();
   }
@@ -131,7 +131,7 @@ exports.unarchive = async (req, res) => {
   
   if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
   
-  if (!conversation.participants.includes(req.user._id)) {
+  if (!conversation.participants.some(p => String(p._id || p) === String(req.user._id))) {
     return res.status(403).json({ error: 'Access denied' });
   }
 
@@ -149,11 +149,11 @@ exports.toggleMute = async (req, res) => {
   
   if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
   
-  if (!conversation.participants.includes(req.user._id)) {
+  if (!conversation.participants.some(p => String(p._id || p) === String(req.user._id))) {
     return res.status(403).json({ error: 'Access denied' });
   }
 
-  const isMuted = conversation.mutedBy.includes(req.user._id);
+  const isMuted = conversation.mutedBy.some(id => String(id) === String(req.user._id));
   
   if (isMuted) {
     conversation.mutedBy = conversation.mutedBy.filter(
@@ -174,7 +174,7 @@ exports.remove = async (req, res) => {
   
   if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
   
-  if (!conversation.participants.includes(req.user._id)) {
+  if (!conversation.participants.some(p => String(p._id || p) === String(req.user._id))) {
     return res.status(403).json({ error: 'Access denied' });
   }
 
@@ -182,7 +182,7 @@ exports.remove = async (req, res) => {
   // ou supprimer complètement si les deux l'ont supprimée
   if (conversation.type === 'direct') {
     // Option simple : archiver de manière permanente
-    if (!conversation.archivedBy.includes(req.user._id)) {
+    if (!conversation.archivedBy.some(id => String(id) === String(req.user._id))) {
       conversation.archivedBy.push(req.user._id);
     }
     await conversation.save();
@@ -199,7 +199,7 @@ exports.markAllRead = async (req, res) => {
   
   if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
   
-  if (!conversation.participants.includes(req.user._id)) {
+  if (!conversation.participants.some(p => String(p._id || p) === String(req.user._id))) {
     return res.status(403).json({ error: 'Access denied' });
   }
 

@@ -2,14 +2,24 @@ const API_BASE = import.meta?.env?.VITE_API_BASE || "";
 
 export async function api(path, { method = "GET", token, body } = {}) {
   const url = (API_BASE || "") + path; // path doit commencer par /
-  const res = await fetch(url, {
+  const headers = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {})
+  };
+
+  // Force no-cache / no-store on API calls to avoid 304 responses from browser caches
+  // which break the app flow (we expect fresh JSON each request).
+  headers['Cache-Control'] = 'no-store';
+
+  const fetchOpts = {
     method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    },
+    headers,
     body: body ? JSON.stringify(body) : undefined,
-  });
+    // ensure the browser does not serve a cached response
+    cache: 'no-store'
+  };
+
+  const res = await fetch(url, fetchOpts);
 
   // Réponses sans corps
   if (res.status === 204 || res.status === 205 || res.status === 304) {
@@ -102,4 +112,33 @@ export async function deleteSession(token, sessionId) {
 // === Suppression de compte ===
 export async function deleteAccount(token) {
   return api("/api/users/account", { method: "DELETE", token });
+}
+
+// === Groups API ===
+export async function getGroup(token, groupId) {
+  return api(`/api/groups/${groupId}`, { token });
+}
+
+export async function getConversation(token, conversationId) {
+  return api(`/api/conversations/${conversationId}`, { token });
+}
+
+export async function updateGroup(token, groupId, body) {
+  return api(`/api/groups/${groupId}`, { method: 'PUT', token, body });
+}
+
+export async function addGroupMembers(token, groupId, memberIds) {
+  return api(`/api/groups/${groupId}/members`, { method: 'POST', token, body: { memberIds } });
+}
+
+export async function removeGroupMember(token, groupId, memberId) {
+  return api(`/api/groups/${groupId}/members/${memberId}`, { method: 'DELETE', token });
+}
+
+export async function promoteGroupMember(token, groupId, memberId) {
+  return api(`/api/groups/${groupId}/members/${memberId}/promote`, { method: 'POST', token });
+}
+
+export async function leaveGroup(token, groupId) {
+  return api(`/api/groups/${groupId}/leave`, { method: 'POST', token });
 }

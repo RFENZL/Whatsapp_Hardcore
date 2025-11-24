@@ -21,7 +21,7 @@ exports.toggle = async (req, res) => {
   // Vérifier l'accès au message
   if (message.conversation) {
     const conversation = await Conversation.findById(message.conversation);
-    if (!conversation || !conversation.participants.includes(req.user._id)) {
+    if (!conversation || !conversation.participants.some(p => String(p._id || p) === String(req.user._id))) {
       return res.status(403).json({ error: 'Access denied' });
     }
   } else if (String(message.sender) !== String(req.user._id) &&
@@ -104,7 +104,7 @@ exports.listByMessage = async (req, res) => {
   // Vérifier l'accès
   if (message.conversation) {
     const conversation = await Conversation.findById(message.conversation);
-    if (!conversation || !conversation.participants.includes(req.user._id)) {
+    if (!conversation || !conversation.participants.some(p => String(p._id || p) === String(req.user._id))) {
       return res.status(403).json({ error: 'Access denied' });
     }
   } else if (String(message.sender) !== String(req.user._id) &&
@@ -195,7 +195,7 @@ exports.listByUser = async (req, res) => {
 
   // Vérifier l'accès à la conversation
   const conversation = await Conversation.findById(conversationId);
-  if (!conversation || !conversation.participants.includes(req.user._id)) {
+  if (!conversation || !conversation.participants.some(p => String(p._id || p) === String(req.user._id))) {
     return res.status(403).json({ error: 'Access denied' });
   }
 

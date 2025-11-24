@@ -19,6 +19,11 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
         </button>
+        <button @click="showCreateGroup = true" class="text-emerald-600 hover:text-emerald-700" title="Créer un groupe">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v8m0 0v8m0-8h8m-8 0H4" />
+          </svg>
+        </button>
       </div>
       <div class="mt-3">
         <input class="w-full rounded-xl border bg-gray-50 px-3 py-2 text-sm" placeholder="Rechercher un contact" v-model="query" />
@@ -123,11 +128,20 @@
       </div>
     </div>
   </aside>
+  <CreateGroup
+    v-if="showCreateGroup"
+    :contacts="contacts"
+    :token="props.token"
+    :me="props.me"
+    @created="(g) => { refreshAll(); showCreateGroup = false }"
+    @close="() => { showCreateGroup = false }"
+  />
 </template>
 
 <script setup>
 import { computed, onMounted, ref, watch } from "vue"
 import Avatar from "./Avatar.vue"
+import CreateGroup from "./CreateGroup.vue"
 import { api } from "../lib/api.js"
 
 const props = defineProps({ me: Object, token: String, onSelectPeer: Function, currentPeer: Object, socket: Object })
@@ -140,6 +154,7 @@ const unreadMap = ref({})
 
 // Modal d'ajout de contact
 const showAddContact = ref(false)
+const showCreateGroup = ref(false)
 const searchQuery = ref("")
 const searchResults = ref([])
 const searching = ref(false)
@@ -162,10 +177,34 @@ async function loadContacts() {
 
 async function loadConversations() {
   try {
-    const convos = await api(`/api/messages/conversations`, { token: props.token })
-    conversations.value = convos
+    // Use /api/conversations which returns both direct and group conversations
+    const convos = await api(`/api/conversations`, { token: props.token })
+    // Normalize to the previous shape: { otherUser, unread }
+    const normalized = convos.map(c => {
+      if (c.type === 'group' && c.group) {
+        return {
+          _id: String(c._id),
+          otherUser: { _id: String(c._id), username: c.group.name, avatar: c.group.avatar, isGroup: true },
+          unread: c.unreadCount || 0,
+          conversationId: c._id,
+          raw: c
+        }
+      } else {
+        // direct: find the other participant
+        const other = (c.participants || []).find(p => String(p._id) !== String(props.me._id))
+        return {
+          _id: other ? String(other._id) : String(c._id),
+          otherUser: other ? { _id: String(other._id), username: other.username, avatar: other.avatar, status: other.status } : { _id: String(c._id), username: 'Conversation' },
+          unread: c.unreadCount || 0,
+          conversationId: c._id,
+          raw: c
+        }
+      }
+    })
+
+    conversations.value = normalized
     const map = {}
-    for (const c of convos) {
+    for (const c of normalized) {
       map[c.otherUser._id] = c.unread || 0
     }
     unreadMap.value = map
@@ -177,9 +216,15 @@ async function loadConversations() {
 
 async function loadUnread() {
   try {
-    const convos = await api(`/api/messages/conversations`, { token: props.token })
+    const convos = await api(`/api/conversations`, { token: props.token })
     const map = {}
-    for (const c of convos) map[c.otherUser._id] = c.unread || 0
+    for (const c of convos) {
+      if (c.type === 'group' && c.group) map[String(c._id)] = c.unreadCount || 0
+      else {
+        const other = (c.participants || []).find(p => String(p._id) !== String(props.me._id))
+        if (other) map[String(other._id)] = c.unreadCount || 0
+      }
+    }
     unreadMap.value = map
   } catch {}
 }
@@ -278,9 +323,16 @@ watch(() => props.socket, (s) => {
     const from = String(m.sender)
     const meId = String(props.me._id)
     const activeId = String(props.currentPeer?._id || '')
-    if (from !== meId) {
-      if (from === activeId) clearUnreadFor(from)
-      else unreadMap.value = { ...unreadMap.value, [from]: (unreadMap.value[from] || 0) + 1 }
+    // If message belongs to a conversation (group), use conversation id as key
+    if (m.conversation) {
+      const convId = String(m.conversation)
+      if (convId === activeId) clearUnreadFor(convId)
+      else unreadMap.value = { ...unreadMap.value, [convId]: (unreadMap.value[convId] || 0) + 1 }
+    } else {
+      if (from !== meId) {
+        if (from === activeId) clearUnreadFor(from)
+        else unreadMap.value = { ...unreadMap.value, [from]: (unreadMap.value[from] || 0) + 1 }
+      }
     }
     // Recharger les conversations pour afficher le nouveau chat
     loadConversations()

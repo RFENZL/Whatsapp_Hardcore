@@ -4,6 +4,27 @@ const User = require('../models/User');
 const Message = require('../models/Message');
 const { getIO } = require('../socket/io');
 
+// Ensure there's at least one admin in the group. If none, promote a random/member (first) to admin.
+async function ensureAdminExists(group) {
+  if (!group.admins || group.admins.length === 0) {
+    // Prefer creator if still a member
+    if (group.creator && group.members.some(m => String(m.user) === String(group.creator))) {
+      group.admins = [group.creator]
+      const member = group.members.find(m => String(m.user) === String(group.creator))
+      if (member) member.role = 'admin'
+      return
+    }
+
+    // Otherwise pick the first remaining member
+    const firstMember = group.members.length > 0 ? group.members[0].user : null
+    if (firstMember) {
+      group.admins = [firstMember]
+      const member = group.members.find(m => String(m.user) === String(firstMember))
+      if (member) member.role = 'admin'
+    }
+  }
+}
+
 // Créer un groupe
 exports.create = async (req, res) => {
   const { name, description, avatar, memberIds } = req.body;
@@ -97,6 +118,8 @@ exports.getById = async (req, res) => {
 exports.update = async (req, res) => {
   const { name, description, avatar } = req.body;
   const group = await Group.findById(req.params.id);
+  // Ensure there's at least one admin in the group
+  await ensureAdminExists(group);
 
   if (!group) return res.status(404).json({ error: 'Group not found' });
   if (!group.isActive) return res.status(404).json({ error: 'Group not found' });
@@ -175,7 +198,7 @@ exports.addMembers = async (req, res) => {
   const conversation = await Conversation.findOne({ group: group._id });
   if (conversation) {
     newMembers.forEach(memberId => {
-      if (!conversation.participants.includes(memberId)) {
+      if (!conversation.participants.some(p => String(p._id || p) === String(memberId))) {
         conversation.participants.push(memberId);
       }
     });
@@ -200,8 +223,9 @@ exports.addMembers = async (req, res) => {
     // Notifier via Socket.IO
     const io = getIO();
     if (io) {
-      conversation.participants.forEach(memberId => {
-        io.to(String(memberId)).emit('group:member-added', {
+      conversation.participants.forEach(participant => {
+        const pid = participant && participant._id ? String(participant._id) : String(participant);
+        io.to(pid).emit('group:member-added', {
           groupId: group._id,
           newMembers: addedUsers.map(u => ({ _id: u._id, username: u.username, avatar: u.avatar }))
         });
@@ -262,18 +286,19 @@ exports.removeMember = async (req, res) => {
 
   // Notifier via Socket.IO
   const io = getIO();
-  if (io) {
-    io.to(String(memberId)).emit('group:removed', { groupId: group._id });
-    
-    if (conversation) {
-      conversation.participants.forEach(pId => {
-        io.to(String(pId)).emit('group:member-removed', {
-          groupId: group._id,
-          removedMemberId: memberId
+    if (io) {
+      io.to(String(memberId)).emit('group:removed', { groupId: group._id });
+      
+      if (conversation) {
+        conversation.participants.forEach(participant => {
+          const pid = participant && participant._id ? String(participant._id) : String(participant);
+          io.to(pid).emit('group:member-removed', {
+            groupId: group._id,
+            removedMemberId: memberId
+          });
         });
-      });
+      }
     }
-  }
 
   res.json({ message: 'Member removed successfully' });
 };
@@ -338,13 +363,19 @@ exports.leave = async (req, res) => {
   // Notifier via Socket.IO
   const io = getIO();
   if (io && conversation) {
-    conversation.participants.forEach(memberId => {
-      io.to(String(memberId)).emit('group:member-left', {
+    conversation.participants.forEach(participant => {
+      const pid = participant && participant._id ? String(participant._id) : String(participant);
+      io.to(pid).emit('group:member-left', {
         groupId: group._id,
         memberId: req.user._id
       });
     });
   }
+
+  // Ensure at least one admin remains after leaving
+  await ensureAdminExists(group);
+
+  await group.save();
 
   res.json({ message: 'You left the group successfully' });
 };
