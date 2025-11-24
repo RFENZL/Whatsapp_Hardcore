@@ -3,16 +3,37 @@ const User = require('../models/User');
 const { getIO } = require('../socket/io');
 
 exports.create = async (req, res) => {
-  const { recipient_id, content, clientId } = req.body;
+  const {
+    recipient_id,
+    content,
+    clientId,
+    type,
+    mediaUrl,
+    mediaName,
+    mediaSize,
+    mediaMimeType
+  } = req.body;
+
   if (!recipient_id) return res.status(400).json({ error: 'recipient required' });
   const recipient = await User.findById(recipient_id);
   if (!recipient) return res.status(404).json({ error: 'recipient not found' });
 
-  const msg = await Message.create({
+  const messageData = {
     sender: req.user._id,
     recipient: recipient._id,
     content: content || ''
-  });
+  };
+
+  // Gestion optionnelle des messages média
+  if (type && type !== 'text') {
+    messageData.type = type;
+    if (mediaUrl) messageData.mediaUrl = mediaUrl;
+    if (mediaName) messageData.mediaName = mediaName;
+    if (mediaSize != null) messageData.mediaSize = mediaSize;
+    if (mediaMimeType) messageData.mediaMimeType = mediaMimeType;
+  }
+
+  const msg = await Message.create(messageData);
 
   const io = getIO();
   if (io) {
@@ -21,6 +42,11 @@ exports.create = async (req, res) => {
       sender: String(msg.sender),
       recipient: String(msg.recipient),
       content: msg.content,
+      type: msg.type,
+      mediaUrl: msg.mediaUrl,
+      mediaName: msg.mediaName,
+      mediaSize: msg.mediaSize,
+      mediaMimeType: msg.mediaMimeType,
       createdAt: msg.createdAt,
       status: msg.status,
       edited: msg.edited,

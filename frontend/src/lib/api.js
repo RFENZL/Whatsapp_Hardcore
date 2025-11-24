@@ -37,3 +37,69 @@ export async function api(path, { method = "GET", token, body } = {}) {
 
   return isJSON ? data : { ok: true, data };
 }
+
+export async function uploadFile(path, { token, file } = {}) {
+  const url = (API_BASE || "") + path;
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: formData
+  });
+
+  const isJSON = res.headers.get("content-type")?.includes("application/json");
+  let data;
+  try {
+    data = isJSON ? await res.json() : await res.text();
+  } catch {
+    data = null;
+  }
+
+  if (!res.ok) {
+    const msg = isJSON
+      ? (data && (data.error?.message || data.error || data.message)) || `${res.status} ${res.statusText}`
+      : (typeof data === "string" && data) || `${res.status} ${res.statusText}`;
+    throw new Error(msg);
+  }
+
+  return data;
+}
+
+// === Gestion des contacts ===
+export async function getContacts(token) {
+  return api("/api/contacts", { token });
+}
+
+export async function addContact(token, contactId) {
+  return api("/api/contacts", { method: "POST", token, body: { contact_id: contactId } });
+}
+
+export async function removeContact(token, contactId) {
+  return api(`/api/contacts/${contactId}`, { method: "DELETE", token });
+}
+
+export async function blockContact(token, contactId) {
+  return api(`/api/contacts/${contactId}/block`, { method: "POST", token });
+}
+
+export async function unblockContact(token, contactId) {
+  return api(`/api/contacts/${contactId}/unblock`, { method: "POST", token });
+}
+
+// === Gestion des sessions ===
+export async function getSessions(token) {
+  return api("/api/users/sessions", { token });
+}
+
+export async function deleteSession(token, sessionId) {
+  return api(`/api/users/sessions/${sessionId}`, { method: "DELETE", token });
+}
+
+// === Suppression de compte ===
+export async function deleteAccount(token) {
+  return api("/api/users/account", { method: "DELETE", token });
+}

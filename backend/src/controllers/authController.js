@@ -1,6 +1,7 @@
 const { body, validationResult } = require('express-validator');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Session = require('../models/Session');
 
 const signToken = (user) => jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'devsecret', { expiresIn: '7d' });
 
@@ -21,6 +22,17 @@ exports.register = async (req, res) => {
   user.status = 'online';
   user.lastSeen = new Date();
   await user.save();
+  
+  // Créer une session
+  const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || '';
+  const userAgent = req.headers['user-agent'] || '';
+  await Session.create({
+    user: user._id,
+    ipAddress,
+    userAgent,
+    isActive: true
+  });
+  
   const token = signToken(user);
   res.status(201).json({ token, user: user.toJSON() });
 };
@@ -41,8 +53,19 @@ exports.login = async (req, res) => {
   user.status = 'online';
   user.lastSeen = new Date();
   await user.save();
+  
+  // Créer une session
+  const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || '';
+  const userAgent = req.headers['user-agent'] || '';
+  const session = await Session.create({
+    user: user._id,
+    ipAddress,
+    userAgent,
+    isActive: true
+  });
+  
   const token = signToken(user);
-  res.json({ token, user: user.toJSON() });
+  res.json({ token, user: user.toJSON(), sessionId: session._id });
 };
 
 exports.logout = async (req, res) => {
@@ -50,5 +73,13 @@ exports.logout = async (req, res) => {
   user.status = 'offline';
   user.lastSeen = new Date();
   await user.save();
+  
+  // Mettre à jour la dernière session active
+  await Session.findOneAndUpdate(
+    { user: user._id, isActive: true },
+    { isActive: false, logoutTime: new Date() },
+    { sort: { loginTime: -1 } }
+  );
+  
   res.json({ message: 'ok' });
 };
