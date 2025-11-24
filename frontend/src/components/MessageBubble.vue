@@ -1,6 +1,9 @@
 <template>
-  <div :class="['w-full flex', isMe ? 'justify-end' : 'justify-start']">
-    <div :class="[base, isMe ? 'bg-emerald-100' : 'bg-white border']">
+  <div :class="['w-full flex', isSystem ? 'justify-center' : (isMe ? 'justify-end' : 'justify-start') ]">
+    <div v-if="isSystem" class="text-center text-sm text-gray-500 my-2">
+      {{ m.content }}
+    </div>
+    <div v-else :class="[base, isMe ? 'bg-emerald-100' : 'bg-white border']">
       <template v-if="m.deleted">
         <div>🗑️ Message supprimé</div>
       </template>
@@ -63,6 +66,7 @@ const props = defineProps({ me: Object, m: Object });
 // Use the same logic as api.js to get API_BASE
 const API_BASE = import.meta?.env?.VITE_API_BASE || "";
 
+const isSystem = computed(() => (props.m && (props.m.type === 'system' || props.m.type === 'notification')));
 const isMe = computed(() => String(props.m.sender) === String(props.me._id));
 const base = "max-w-[75%] rounded-2xl px-3 py-2 text-sm shadow-sm";
 
@@ -76,7 +80,7 @@ const time = computed(() => {
 
 const kind = computed(() => {
   const t = props.m.type || "text";
-  if (t === "image" || t === "video" || t === "file") return t;
+  if (t === "image" || t === "video" || t === "file" || t === 'system') return t;
   return "text";
 });
 

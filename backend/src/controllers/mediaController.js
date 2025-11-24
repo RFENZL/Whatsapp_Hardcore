@@ -169,7 +169,7 @@ exports.getById = async (req, res) => {
     const Conversation = require('../models/Conversation');
     const conversation = await Conversation.findById(media.conversation);
     
-    if (!conversation || !conversation.participants.includes(req.user._id)) {
+    if (!conversation || !conversation.participants.some(p => String(p._id || p) === String(req.user._id))) {
       return res.status(403).json({ error: 'Access denied' });
     }
   } else if (String(media.uploadedBy._id) !== String(req.user._id)) {

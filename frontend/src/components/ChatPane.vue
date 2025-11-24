@@ -3,45 +3,62 @@
   <div class="flex flex-col h-full">
     <div class="px-4 py-3 flex items-center justify-between border-b bg-white">
       <div class="flex items-center gap-3 min-w-0">
-        <Avatar :user="peer" />
+        <button type="button" @click="onAvatarClick" class="p-0 bg-transparent border-0 cursor-pointer">
+          <Avatar :user="props.peer" />
+        </button>
         <div class="min-w-0">
-          <div class="font-medium truncate">{{ peer.username }}</div>
+          <div class="font-medium truncate">{{ props.peer?.username }}</div>
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <span :class="['px-2 py-0.5 rounded-full text-[11px] whitespace-nowrap', peer.status==='online' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600']">
-          {{ peer.status }}
-        </span>
-        <button @click="toggleMenu" class="text-gray-600 hover:text-gray-900 relative" title="Actions">
-          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
-          </svg>
-          <div v-if="showMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-50">
-            <button @click="handleAddContact" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm">➕ Ajouter aux contacts</button>
-            <button @click="handleBlockContact" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-orange-600">🚫 Bloquer</button>
-            <button @click="handleRemoveContact" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-red-600">🗑️ Supprimer</button>
+        <span :class="['px-2 py-0.5 rounded-full text-[11px] whitespace-nowrap', props.peer?.status==='online' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600']">
+          {{ props.peer?.status }}</span>
+
+        <template v-if="props.peer && props.peer.isGroup">
+          <button @click="showAddMembersModal = true" class="text-gray-600 hover:text-gray-900" title="Ajouter des membres">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" />
+            </svg>
+          </button>
+        </template>
+
+        <template v-else>
+          <div class="relative">
+            <button @click="toggleMenu" class="text-gray-600 hover:text-gray-900" title="Actions">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+              </svg>
+            </button>
+            <div v-if="showMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-50">
+              <button @click="handleAddContact" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm">➕ Ajouter aux contacts</button>
+              <button @click="handleBlockContact" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-orange-600">🚫 Bloquer</button>
+              <button @click="handleRemoveContact" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-red-600">🗑️ Supprimer</button>
+            </div>
           </div>
-        </button>
+        </template>
       </div>
     </div>
 
     <div ref="listRef" class="flex-1 overflow-y-auto bg-gray-50 p-4 space-y-2 pb-28">
-      <MessageBubble v-for="m in messages" :key="m._id" :me="me" :m="m" />
+      <MessageBubble v-for="m in messages" :key="m._id" :me="props.me" :m="m" />
     </div>
 
-    <div v-show="typing" class="px-4 py-2 text-xs text-emerald-700 bg-emerald-50 border-t">
-      en train d’écrire...
-    </div>
+    <div v-show="typing" class="px-4 py-2 text-xs text-emerald-700 bg-emerald-50 border-t">en train d’écrire...</div>
 
     <div class="sticky bottom-0 z-10 border-t bg-gray-50">
-      <Composer :key="currentPeerId" @send="send" @send-file="sendFile" @typing="typingPing" :disabled="!socketReady || !peer" />
+      <Composer :key="currentPeerId" @send="send" @send-file="sendFile" @typing="typingPing" :disabled="!socketReady || !props.peer" />
     </div>
+
+    <GroupModal v-if="showGroupModal" :conversationId="props.peer._id" :token="props.token" :currentUser="props.me" @close="() => { showGroupModal = false }" @updated="onGroupUpdated" @left="onGroupLeft" />
+    <AddMembersModal v-if="showAddMembersModal" :conversationId="props.peer._id" :token="props.token" @close="() => { showAddMembersModal = false }" @added="onMemberAdded" />
   </div>
 </template>
 
 <script setup>
 import { onMounted, onUnmounted, ref, watch, computed, nextTick, watchEffect } from "vue"
 import Avatar from "./Avatar.vue"
+import GroupModal from "./GroupModal.vue"
+import AddMembersModal from "./AddMembersModal.vue"
 import Composer from "./Composer.vue"
 import MessageBubble from "./MessageBubble.vue"
 import { api, uploadFile, addContact, blockContact as apiBlockContact, removeContact as apiRemoveContact } from "../lib/api.js"
@@ -51,6 +68,8 @@ const props = defineProps({ me: Object, peer: Object, token: String, socket: Obj
 const messages = ref([])
 const page = ref(1)
 const showMenu = ref(false)
+const showGroupModal = ref(false)
+const showAddMembersModal = ref(false)
 const hasMore = ref(true)
 const typing = ref(false)
 const listRef = ref(null)
@@ -69,19 +88,63 @@ function atBottom() {
 }
 
 async function load(p=1){
-  const data = await api(`/api/messages/${props.peer._id}?page=${p}&limit=30`, { token: props.token })
-  if (p===1) {
-    messages.value = data.items.reverse()
+  let data
+  // If peer is a group, props.peer._id is the conversation id
+  if (props.peer && props.peer.isGroup) {
+    data = await api(`/api/messages/conversation/${props.peer._id}?page=${p}&limit=30`, { token: props.token })
+  } else {
+    data = await api(`/api/messages/${props.peer?._id}?page=${p}&limit=30`, { token: props.token })
+  }
+  const raw = data && (data.items || data.messages) ? (data.items || data.messages) : []
+  const isConversationShape = !!(data && data.messages)
+  const itemsAscending = isConversationShape ? raw : raw.slice().reverse()
+
+  const normalize = (msg) => {
+    const m = { ...msg }
+    if (m.sender && typeof m.sender === 'object') m.sender = m.sender._id || m.sender.id || m.sender
+    if (m.recipient && typeof m.recipient === 'object') m.recipient = m.recipient._id || m.recipient.id || m.recipient
+    if (m.conversation && typeof m.conversation === 'object') m.conversation = m.conversation._id || m.conversation.id || m.conversation
+    if (m.group && typeof m.group === 'object') m.group = m.group._id || m.group.id || m.group
+    return m
+  }
+
+  const normalizedItems = itemsAscending.map(normalize)
+
+  if (p === 1) {
+    messages.value = normalizedItems
     await nextTick()
     scrollBottom()
+
+    try {
+      if (props.peer && props.peer._id) {
+        let convId = null
+        if (props.peer.isGroup) {
+          convId = props.peer._id
+        } else {
+          try {
+            const conv = await api('/api/conversations/direct', { method: 'POST', token: props.token, body: { participantId: props.peer._id } })
+            convId = conv && conv._id ? conv._id : null
+          } catch (err) {
+            console.warn('could not ensure direct conversation id', err && err.message)
+          }
+        }
+
+        if (convId) {
+          await api(`/api/conversations/${convId}/mark-read`, { method: 'POST', token: props.token })
+        }
+      }
+    } catch (e) {
+      console.warn('mark-read failed', e && e.message)
+    }
   } else {
     const el = listRef.value
     const prev = el ? el.scrollHeight : 0
-    messages.value = [...data.items.reverse(), ...messages.value]
+    messages.value = [...normalizedItems, ...messages.value]
     await nextTick()
     if (el) el.scrollTop = el.scrollHeight - prev
   }
-  if (data.items.length < 30) hasMore.value = false
+
+  if (raw.length < 30) hasMore.value = false
 }
 
 watch(() => props.peer?._id, async (id) => {
@@ -127,8 +190,11 @@ function onMsg(message){
   const pid = currentPeerId.value
   if (!pid) return
   const sId = String(message.sender)
-  const rId = String(message.recipient)
-  if (sId === pid || rId === pid) {
+  const rId = message.recipient ? String(message.recipient) : null
+  const convId = message.conversation ? String(message.conversation) : null
+
+  const matches = sId === pid || rId === pid || convId === pid
+  if (matches) {
     const stick = atBottom() || String(message.sender) === String(props.me._id)
     if (message.clientId) {
       const idx = messages.value.findIndex(x => x.clientId && x.clientId === message.clientId)
@@ -159,6 +225,25 @@ watch(() => props.socket, (s) => {
   }
 }, { immediate: true })
 
+// Group modal handlers
+function onGroupUpdated(updated) {
+  if (updated && updated._id && props.peer && props.peer._id && String(updated._id) === String(props.peer._id)) {
+    props.peer.username = updated.name
+  }
+  showGroupModal.value = false
+}
+
+function onGroupLeft(groupId) {
+  if (props.peer && props.peer._id && String(props.peer._id) === String(groupId)) {
+    try { props.socket && props.socket.emit('left-group', { groupId }) } catch {}
+  }
+}
+
+function onMemberAdded(user) {
+  // close modal and optionally refresh group data
+  showAddMembersModal.value = false
+}
+
 async function send(content){
   const clientId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now())
   const local = {
@@ -176,11 +261,8 @@ async function send(content){
   await nextTick()
   scrollBottom()
   try {
-    await api(`/api/messages`, {
-      method: 'POST',
-      token: props.token,
-      body: { recipient_id: props.peer._id, content, clientId }
-    })
+    const body = props.peer.isGroup ? { conversation_id: props.peer._id, content, clientId } : { recipient_id: props.peer._id, content, clientId }
+    await api(`/api/messages`, { method: 'POST', token: props.token, body })
   } catch(e) {}
 }
 
@@ -228,11 +310,8 @@ async function sendFile(file){
       mediaSize: uploaded.size,
       mediaMimeType: uploaded.mimeType || mime
     };
-    await api(`/api/messages`, {
-      method: 'POST',
-      token: props.token,
-      body
-    });
+    const body = props.peer.isGroup ? { ...common, conversation_id: props.peer._id } : { ...common, recipient_id: props.peer._id };
+    await api(`/api/messages`, { method: 'POST', token: props.token, body });
   } catch (e) {
     const idx = messages.value.findIndex(x => x.clientId === clientId);
     if (idx !== -1) {
@@ -248,8 +327,10 @@ function typingPing(){
   }
 }
 
-function toggleMenu() {
-  showMenu.value = !showMenu.value
+function toggleMenu() { showMenu.value = !showMenu.value }
+
+function onAvatarClick() {
+  if (props && props.peer && props.peer.isGroup) showGroupModal.value = true
 }
 
 async function handleAddContact() {
