@@ -198,7 +198,26 @@ exports.update = async (req, res) => {
   if (String(msg.sender) !== String(req.user._id)) return res.status(403).json({ error: 'Forbidden' });
   msg.content = req.body.content ?? msg.content;
   msg.edited = true;
+  msg.editedAt = new Date();
   await msg.save();
+  
+  // Émettre via Socket.IO pour mettre à jour en temps réel
+  const io = getIO();
+  if (io) {
+    const conversation = await msg.populate('conversation');
+    if (conversation && conversation.participants) {
+      conversation.participants.forEach(participant => {
+        const pid = participant && participant._id ? String(participant._id) : String(participant);
+        io.to(pid).emit('message:updated', {
+          _id: String(msg._id),
+          content: msg.content,
+          edited: msg.edited,
+          editedAt: msg.editedAt
+        });
+      });
+    }
+  }
+  
   res.json(msg);
 };
 

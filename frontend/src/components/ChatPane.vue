@@ -41,8 +41,15 @@
       </div>
     </div>
 
-    <div ref="listRef" class="flex-1 overflow-y-auto bg-gray-50 p-4 space-y-2 pb-28">
-      <MessageBubble v-for="m in messages" :key="m._id" :me="props.me" :m="m" />
+    <div ref="listRef" class="flex-1 overflow-y-auto overflow-x-hidden bg-gray-50 p-4 space-y-2 pb-28">
+      <MessageBubble 
+        v-for="m in messages" 
+        :key="m._id" 
+        :me="props.me" 
+        :m="m" 
+        @edit="handleEditMessage"
+        @delete="handleDeleteMessage"
+      />
     </div>
 
     <div v-show="typing" class="px-4 py-2 text-xs text-emerald-700 bg-emerald-50 border-t">en train d’écrire...</div>
@@ -234,12 +241,23 @@ function onMsg(message){
 function onTyping(evt){ if (evt.from === currentPeerId.value) typing.value = true }
 function onTypingStopped(evt){ if (evt.from === currentPeerId.value) typing.value = false }
 
+function onMessageUpdated(data) {
+  const msg = messages.value.find(m => String(m._id) === String(data._id));
+  if (msg) {
+    msg.content = data.content;
+    msg.edited = data.edited;
+    msg.editedAt = data.editedAt;
+  }
+}
+
 watch(() => props.socket, (s) => {
   if (!s) return
   const hMsg = (m) => onMsg(m)
   const hTyping = (e) => onTyping(e)
   const hTypingStop = (e) => onTypingStopped(e)
+  const hMsgUpdated = (data) => onMessageUpdated(data)
   s.on('message:new', hMsg)
+  s.on('message:updated', hMsgUpdated)
   s.on('typing', hTyping)
   s.on('typing-stopped', hTypingStop)
   const hStatus = (payload) => {
@@ -249,6 +267,7 @@ watch(() => props.socket, (s) => {
   s.on('user-status', hStatus)
   return () => {
     s.off('message:new', hMsg)
+    s.off('message:updated', hMsgUpdated)
     s.off('typing', hTyping)
     s.off('typing-stopped', hTypingStop)
     s.off('user-status', hStatus)
@@ -330,8 +349,7 @@ async function sendFile(file){
 
   try {
     const uploaded = await uploadFile(props.token, file);
-    const body = {
-      recipient_id: props.peer._id,
+    const common = {
       content: file.name,
       clientId,
       type,
@@ -340,7 +358,9 @@ async function sendFile(file){
       mediaSize: uploaded.size,
       mediaMimeType: uploaded.mimeType || mime
     };
-    const body = props.peer.isGroup ? { ...common, conversation_id: props.peer._id } : { ...common, recipient_id: props.peer._id };
+    const body = props.peer.isGroup 
+      ? { ...common, conversation_id: props.peer._id } 
+      : { ...common, recipient_id: props.peer._id };
     await api(`/api/messages`, { method: 'POST', token: props.token, body });
   } catch (e) {
     const idx = messages.value.findIndex(x => x.clientId === clientId);
@@ -392,6 +412,44 @@ async function handleRemoveContact() {
     alert('Contact supprimé')
   } catch (e) {
     alert('Erreur: ' + e.message)
+  }
+}
+
+async function handleEditMessage({ messageId, content }) {
+  try {
+    await api(`/api/messages/${messageId}`, {
+      method: 'PUT',
+      token: props.token,
+      body: { content }
+    });
+    
+    // Update local message
+    const msg = messages.value.find(m => String(m._id) === String(messageId));
+    if (msg) {
+      msg.content = content;
+      msg.edited = true;
+    }
+  } catch (e) {
+    alert('Erreur lors de la modification: ' + e.message);
+  }
+}
+
+async function handleDeleteMessage(messageId) {
+  if (!confirm('Supprimer ce message ?')) return;
+  
+  try {
+    await api(`/api/messages/${messageId}`, {
+      method: 'DELETE',
+      token: props.token
+    });
+    
+    // Update local message
+    const msg = messages.value.find(m => String(m._id) === String(messageId));
+    if (msg) {
+      msg.deleted = true;
+    }
+  } catch (e) {
+    alert('Erreur lors de la suppression: ' + e.message);
   }
 }
 
