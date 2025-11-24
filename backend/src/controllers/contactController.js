@@ -1,5 +1,7 @@
 const Contact = require('../models/Contact');
 const User = require('../models/User');
+const Conversation = require('../models/Conversation');
+const Message = require('../models/Message');
 
 // GET /api/contacts
 exports.list = async (req, res) => {
@@ -31,11 +33,19 @@ exports.add = async (req, res) => {
   const user = await User.findById(contact_id);
   if (!user) return res.status(404).json({ error: 'user not found' });
 
+  // Créer le contact pour l'utilisateur A -> B
   const contact = await Contact.findOneAndUpdate(
     { owner: req.user._id, contact: user._id },
     { $setOnInsert: { blocked: false } },
     { new: true, upsert: true }
   ).populate('contact', 'username avatar status lastSeen');
+
+  // Créer automatiquement le contact inverse pour B -> A (bidirectionnel)
+  await Contact.findOneAndUpdate(
+    { owner: user._id, contact: req.user._id },
+    { $setOnInsert: { blocked: false } },
+    { new: true, upsert: true }
+  );
 
   res.status(201).json({
     _id: contact._id,
@@ -58,6 +68,26 @@ exports.remove = async (req, res) => {
     contact: contactId
   });
   if (!removed) return res.status(404).json({ error: 'contact not found' });
+
+  // Supprimer aussi le contact inverse (bidirectionnel)
+  await Contact.findOneAndDelete({
+    owner: contactId,
+    contact: req.user._id
+  });
+
+  // Supprimer la conversation directe entre les deux utilisateurs
+  const conversation = await Conversation.findOne({
+    type: 'direct',
+    participants: { $all: [req.user._id, contactId] }
+  });
+  
+  if (conversation) {
+    // Supprimer tous les messages de la conversation
+    await Message.deleteMany({ conversation: conversation._id });
+    // Supprimer la conversation
+    await Conversation.findByIdAndDelete(conversation._id);
+  }
+
   res.json({ message: 'ok' });
 };
 
@@ -70,6 +100,20 @@ exports.block = async (req, res) => {
     { new: true }
   ).populate('contact', 'username avatar status lastSeen');
   if (!contact) return res.status(404).json({ error: 'contact not found' });
+
+  // Supprimer la conversation directe entre les deux utilisateurs
+  const conversation = await Conversation.findOne({
+    type: 'direct',
+    participants: { $all: [req.user._id, contactId] }
+  });
+  
+  if (conversation) {
+    // Supprimer tous les messages de la conversation
+    await Message.deleteMany({ conversation: conversation._id });
+    // Supprimer la conversation
+    await Conversation.findByIdAndDelete(conversation._id);
+  }
+
   res.json(contact);
 };
 

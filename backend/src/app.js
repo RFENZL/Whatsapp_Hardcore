@@ -12,6 +12,10 @@ const userRoutes = require('./routes/users');
 const messageRoutes = require('./routes/messages');
 const contactRoutes = require('./routes/contacts');
 const uploadRoutes = require('./routes/upload');
+const conversationRoutes = require('./routes/conversations');
+const groupRoutes = require('./routes/groups');
+const mediaRoutes = require('./routes/medias');
+const reactionRoutes = require('./routes/reactions');
 
 const app = express();
 
@@ -37,6 +41,10 @@ app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/conversations', conversationRoutes);
+app.use('/api/groups', groupRoutes);
+app.use('/api/medias', mediaRoutes);
+app.use('/api/reactions', reactionRoutes);
 
 const uploadsPath = path.resolve(__dirname, '..', '..', 'uploads');
 if (fs.existsSync(uploadsPath)) {

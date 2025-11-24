@@ -17,24 +17,39 @@ exports.register = async (req, res) => {
   const { email, username, password, avatar } = req.body;
   const exists = await User.findOne({ $or: [{ email }, { username }] });
   if (exists) return res.status(400).json({ error: 'Email or username used' });
-  const user = new User({ email, username, password, avatar });
-  await user.save();
-  user.status = 'online';
-  user.lastSeen = new Date();
-  await user.save();
   
-  // Créer une session
-  const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || '';
-  const userAgent = req.headers['user-agent'] || '';
-  await Session.create({
-    user: user._id,
-    ipAddress,
-    userAgent,
-    isActive: true
-  });
-  
-  const token = signToken(user);
-  res.status(201).json({ token, user: user.toJSON() });
+  try {
+    const user = new User({ 
+      email, 
+      username, 
+      password, 
+      avatar,
+      status: 'online',
+      lastSeen: new Date()
+    });
+    await user.save();
+    
+    // Créer une session
+    const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || '';
+    const userAgent = req.headers['user-agent'] || '';
+    await Session.create({
+      user: user._id,
+      ipAddress,
+      userAgent,
+      isActive: true
+    });
+    
+    const token = signToken(user);
+    res.status(201).json({ token, user: user.toJSON() });
+  } catch (error) {
+    // Gérer les erreurs de duplication MongoDB
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return res.status(400).json({ error: `${field} already exists` });
+    }
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'Registration failed' });
+  }
 };
 
 exports.validateLogin = [

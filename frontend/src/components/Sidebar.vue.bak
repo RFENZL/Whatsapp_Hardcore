@@ -29,12 +29,6 @@
     </div>
 
     <ul class="divide-y max-h-[calc(100%-120px)] overflow-y-auto">
-      <li v-if="allChats.length === 0" class="px-3 py-8 text-center text-gray-500">
-        <p class="text-sm">Aucune conversation</p>
-        <button @click="showAddContact = true" class="mt-2 text-emerald-600 hover:underline text-sm">
-          Commencer un nouveau chat
-        </button>
-      </li>
       <li
         v-for="u in filtered"
         :key="u._id"
@@ -70,58 +64,6 @@
         </div>
       </li>
     </ul>
-
-    <!-- Modal d'ajout de contact -->
-    <div v-if="showAddContact" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="closeAddContact">
-      <div class="bg-white rounded-lg w-full max-w-md mx-4 p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-lg font-semibold">Ajouter un contact</h2>
-          <button @click="closeAddContact" class="text-gray-500 hover:text-gray-700">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        
-        <div class="mb-4">
-          <input 
-            v-model="searchQuery" 
-            @input="searchUsers"
-            class="w-full rounded-lg border px-3 py-2 text-sm" 
-            placeholder="Rechercher un utilisateur..."
-          />
-        </div>
-
-        <div v-if="searching" class="text-center py-4 text-gray-500">
-          Recherche...
-        </div>
-
-        <div v-else-if="searchResults.length === 0 && searchQuery" class="text-center py-4 text-gray-500">
-          Aucun utilisateur trouvé
-        </div>
-
-        <ul v-else class="space-y-2 max-h-64 overflow-y-auto">
-          <li 
-            v-for="user in searchResults" 
-            :key="user._id"
-            class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg"
-          >
-            <Avatar :user="user" />
-            <div class="flex-1 min-w-0">
-              <div class="font-medium truncate">{{ user.username }}</div>
-              <div class="text-xs text-gray-500">{{ user.status || 'offline' }}</div>
-            </div>
-            <button 
-              @click="addContact(user._id)"
-              :disabled="addingContact === user._id"
-              class="px-3 py-1 bg-emerald-500 text-white text-sm rounded-lg hover:bg-emerald-600 disabled:opacity-50"
-            >
-              {{ addingContact === user._id ? 'Ajout...' : 'Ajouter' }}
-            </button>
-          </li>
-        </ul>
-      </div>
-    </div>
   </aside>
 </template>
 
@@ -131,50 +73,19 @@ import Avatar from "./Avatar.vue"
 import { api } from "../lib/api.js"
 
 const props = defineProps({ me: Object, token: String, onSelectPeer: Function, currentPeer: Object, socket: Object })
-
-const contacts = ref([])
-const conversations = ref([])
+const users = ref([])
 const query = ref("")
 const typingMap = ref({})
 const unreadMap = ref({})
-
-// Modal d'ajout de contact
-const showAddContact = ref(false)
-const searchQuery = ref("")
-const searchResults = ref([])
-const searching = ref(false)
-const addingContact = ref(null)
-let searchTimeout = null
 
 function isTyping(id){ return !!typingMap.value[id] }
 function unread(id){ return unreadMap.value[id] || 0 }
 function clearUnreadFor(id){ unreadMap.value = { ...unreadMap.value, [id]: 0 } }
 
-async function loadContacts() {
-  try {
-    const data = await api(`/api/contacts`, { token: props.token })
-    contacts.value = data.map(c => c.contact).filter(u => u && u._id !== props.me._id)
-  } catch (e) {
-    console.error('Erreur chargement contacts:', e)
-    contacts.value = []
-  }
+async function loadUsers() {
+  const data = await api(`/api/users?limit=100&page=1`, { token: props.token })
+  users.value = data.items.filter(u => u._id !== props.me._id)
 }
-
-async function loadConversations() {
-  try {
-    const convos = await api(`/api/messages/conversations`, { token: props.token })
-    conversations.value = convos
-    const map = {}
-    for (const c of convos) {
-      map[c.otherUser._id] = c.unread || 0
-    }
-    unreadMap.value = map
-  } catch (e) {
-    console.error('Erreur chargement conversations:', e)
-    conversations.value = []
-  }
-}
-
 async function loadUnread() {
   try {
     const convos = await api(`/api/messages/conversations`, { token: props.token })
@@ -183,84 +94,7 @@ async function loadUnread() {
     unreadMap.value = map
   } catch {}
 }
-
-async function refreshAll(){ 
-  await loadConversations()
-  await loadContacts()
-}
-
-async function searchUsers() {
-  if (!searchQuery.value.trim()) {
-    searchResults.value = []
-    return
-  }
-
-  clearTimeout(searchTimeout)
-  searchTimeout = setTimeout(async () => {
-    searching.value = true
-    try {
-      const results = await api(`/api/users/search?q=${encodeURIComponent(searchQuery.value)}`, { token: props.token })
-      // Filtrer l'utilisateur connecté et les contacts existants
-      const contactIds = contacts.value.map(c => c._id)
-      searchResults.value = results.filter(u => u._id !== props.me._id && !contactIds.includes(u._id))
-    } catch (e) {
-      console.error('Erreur recherche:', e)
-      searchResults.value = []
-    }
-    searching.value = false
-  }, 300)
-}
-
-async function addContact(userId) {
-  addingContact.value = userId
-  try {
-    await api('/api/contacts', {
-      method: 'POST',
-      token: props.token,
-      body: { contact_id: userId }
-    })
-    await loadContacts()
-    await loadConversations()
-    closeAddContact()
-  } catch (e) {
-    console.error('Erreur ajout contact:', e)
-    alert('Erreur lors de l\'ajout du contact')
-  }
-  addingContact.value = null
-}
-
-function closeAddContact() {
-  showAddContact.value = false
-  searchQuery.value = ""
-  searchResults.value = []
-}
-
-// Fusionner les conversations et les contacts pour afficher tous les chats disponibles
-const allChats = computed(() => {
-  const chatMap = new Map()
-  
-  // Ajouter toutes les conversations actives
-  conversations.value.forEach(convo => {
-    if (convo.otherUser && convo.otherUser._id) {
-      chatMap.set(convo.otherUser._id, {
-        ...convo.otherUser,
-        hasConversation: true
-      })
-    }
-  })
-  
-  // Ajouter les contacts qui n'ont pas encore de conversation
-  contacts.value.forEach(contact => {
-    if (contact && contact._id && !chatMap.has(contact._id)) {
-      chatMap.set(contact._id, {
-        ...contact,
-        hasConversation: false
-      })
-    }
-  })
-  
-  return Array.from(chatMap.values())
-})
+async function refreshAll(){ await loadUsers(); await loadUnread() }
 
 onMounted(refreshAll)
 
@@ -282,8 +116,6 @@ watch(() => props.socket, (s) => {
       if (from === activeId) clearUnreadFor(from)
       else unreadMap.value = { ...unreadMap.value, [from]: (unreadMap.value[from] || 0) + 1 }
     }
-    // Recharger les conversations pour afficher le nouveau chat
-    loadConversations()
   }
   s.on('typing', onTyping)
   s.on('typing-stopped', onTypingStop)
@@ -303,8 +135,8 @@ async function logout(){
 }
 
 const filtered = computed(() => {
-  if (!query.value) return allChats.value
+  if (!query.value) return users.value
   const q = query.value.toLowerCase()
-  return allChats.value.filter(u => u.username.toLowerCase().includes(q))
+  return users.value.filter(u => u.username.toLowerCase().includes(q))
 })
 </script>
