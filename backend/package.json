@@ -1,0 +1,37 @@
+{
+  "name": "chat-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "NODE_ENV=production node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "mocha --timeout 25000 \"test/**/*.test.js\"",
+    "coverage": "nyc -r text -r html -r lcov npm run test",
+    "serve:dist": "node src/server.js"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-validator": "^7.0.1",
+    "helmet": "^7.1.0",
+    "http-errors": "^2.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.6.1",
+    "morgan": "^1.10.0",
+    "socket.io": "^4.7.5",
+    "@sentry/node": "^8.0.0"
+  },
+  "devDependencies": {
+    "chai": "^5.3.3",
+    "mocha": "^11.7.4",
+    "mongodb-memory-server": "^10.3.0",
+    "nodemon": "^3.1.7",
+    "nyc": "^17.1.0",
+    "socket.io-client": "^4.8.1",
+    "supertest": "^7.1.4"
+  }
+}

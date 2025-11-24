@@ -1,0 +1,131 @@
+<!-- frontend/src/components/Sidebar.vue -->
+<template>
+  <aside class="w-full h-full bg-white border-r">
+    <div class="px-3 py-2 border-b">
+      <div class="flex items-center gap-3">
+        <Avatar :user="me" />
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold truncate">{{ me.username }}</div>
+          <div class="text-xs text-gray-500 truncate">{{ me.email || 'Compte' }}</div>
+        </div>
+      </div>
+      <div class="mt-3">
+        <input class="w-full rounded-xl border bg-gray-50 px-3 py-2 text-sm" placeholder="Rechercher ou démarrer un chat" v-model="query" />
+      </div>
+      <div class="mt-2 text-right">
+        <button @click="logout" class="text-xs text-gray-600 underline">Déconnexion</button>
+      </div>
+    </div>
+
+    <ul class="divide-y max-h-[calc(100%-120px)] overflow-y-auto">
+      <li
+        v-for="u in filtered"
+        :key="u._id"
+        @click="() => { clearUnreadFor(u._id); onSelectPeer(u) }"
+        :class="[
+          'px-3 py-3 cursor-pointer hover:bg-gray-50 transition-colors',
+          currentPeer?._id===u._id ? 'bg-emerald-100' : (unread(u._id) ? 'bg-emerald-50' : '')
+        ]"
+      >
+        <div class="flex items-center gap-3">
+          <Avatar :user="u" />
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span :class="['truncate', unread(u._id) ? 'font-semibold' : 'font-medium']">{{ u.username }}</span>
+              <span
+                :class="[
+                  'ml-auto px-2 py-0.5 rounded-full text-[11px] whitespace-nowrap',
+                  u.status==='online' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
+                ]"
+              >
+                {{ u.status }}
+              </span>
+            </div>
+            <div class="text-xs truncate">
+              <span v-if="isTyping(u._id)" class="text-emerald-600">en train d’écrire...</span>
+              <span v-else class="text-gray-500">{{ u.lastSeen ? 'Vu ' + new Date(u.lastSeen).toLocaleString() : 'Jamais' }}</span>
+            </div>
+          </div>
+
+          <div v-if="unread(u._id)" class="ml-2 shrink-0 text-xs text-white bg-emerald-500 rounded-full px-2 py-0.5">
+            {{ unread(u._id) }}
+          </div>
+        </div>
+      </li>
+    </ul>
+  </aside>
+</template>
+
+<script setup>
+import { computed, onMounted, ref, watch } from "vue"
+import Avatar from "./Avatar.vue"
+import { api } from "../lib/api.js"
+
+const props = defineProps({ me: Object, token: String, onSelectPeer: Function, currentPeer: Object, socket: Object })
+const users = ref([])
+const query = ref("")
+const typingMap = ref({})
+const unreadMap = ref({})
+
+function isTyping(id){ return !!typingMap.value[id] }
+function unread(id){ return unreadMap.value[id] || 0 }
+function clearUnreadFor(id){ unreadMap.value = { ...unreadMap.value, [id]: 0 } }
+
+async function loadUsers() {
+  const data = await api(`/api/users?limit=100&page=1`, { token: props.token })
+  users.value = data.items.filter(u => u._id !== props.me._id)
+}
+async function loadUnread() {
+  try {
+    const convos = await api(`/api/conversations`, { token: props.token })
+    const map = {}
+    for (const c of convos) map[c.otherUser._id] = c.unread || 0
+    unreadMap.value = map
+  } catch {}
+}
+async function refreshAll(){ await loadUsers(); await loadUnread() }
+
+onMounted(refreshAll)
+
+watch(() => props.currentPeer?._id, async (id) => {
+  if (id) clearUnreadFor(String(id))
+  await loadUnread()
+})
+
+watch(() => props.socket, (s) => {
+  if (!s) return
+  const onTyping = ({ from }) => { typingMap.value = { ...typingMap.value, [from]: true } }
+  const onTypingStop = ({ from }) => { const m = { ...typingMap.value }; delete m[from]; typingMap.value = m }
+  const onStatus = () => refreshAll()
+  const onNew = (m) => {
+    const from = String(m.sender)
+    const meId = String(props.me._id)
+    const activeId = String(props.currentPeer?._id || '')
+    if (from !== meId) {
+      if (from === activeId) clearUnreadFor(from)
+      else unreadMap.value = { ...unreadMap.value, [from]: (unreadMap.value[from] || 0) + 1 }
+    }
+  }
+  s.on('typing', onTyping)
+  s.on('typing-stopped', onTypingStop)
+  s.on('user-status', onStatus)
+  s.on('message:new', onNew)
+  return () => {
+    s.off('typing', onTyping)
+    s.off('typing-stopped', onTypingStop)
+    s.off('user-status', onStatus)
+    s.off('message:new', onNew)
+  }
+}, { immediate: true })
+
+async function logout(){
+  try { await api('/api/auth/logout', { method: 'POST', token: props.token }) } catch {}
+  window.location.reload()
+}
+
+const filtered = computed(() => {
+  if (!query.value) return users.value
+  const q = query.value.toLowerCase()
+  return users.value.filter(u => u.username.toLowerCase().includes(q))
+})
+</script>
