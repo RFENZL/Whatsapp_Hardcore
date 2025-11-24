@@ -76,7 +76,13 @@ function onAccountDeleted(){
   window.location.reload()
 }
 function onProfileUpdated(updatedUser){
-  auth.value = { ...auth.value, user: { ...auth.value.user, ...updatedUser } }
+  // Update the user object properties directly to maintain reactivity
+  if (auth.value && auth.value.user) {
+    auth.value.user.username = updatedUser.username
+    auth.value.user.avatar = updatedUser.avatar
+    auth.value.user.status = updatedUser.status
+    auth.value.user.lastSeen = updatedUser.lastSeen
+  }
 }
 watch(() => auth.value?.token, (t) => { if (t) socket.value = createSocket(t) })
 onMounted(() => { const t = auth.value?.token; if (t) socket.value = createSocket(t) })

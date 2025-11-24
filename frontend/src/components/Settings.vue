@@ -30,6 +30,63 @@
       <!-- Profil Tab -->
       <div v-if="activeTab === 'profile'" class="max-w-xl space-y-4">
         <h3 class="text-lg font-medium mb-4">Modifier le profil</h3>
+        
+        <!-- Avatar preview and upload -->
+        <div class="space-y-2">
+          <label class="block text-sm font-medium text-gray-700 mb-2">Photo de profil</label>
+          <div class="flex items-center gap-4">
+            <!-- Avatar preview -->
+            <div class="w-20 h-20 rounded-full overflow-hidden bg-emerald-100 flex items-center justify-center">
+              <img 
+                v-if="avatarPreviewUrl" 
+                :src="avatarPreviewUrl" 
+                class="w-full h-full object-cover"
+                @error="handlePreviewError"
+              />
+              <span v-else class="text-2xl font-semibold text-emerald-800">
+                {{ (profileForm.username || 'U').slice(0,2).toUpperCase() }}
+              </span>
+            </div>
+            
+            <!-- Upload buttons -->
+            <div class="flex-1 space-y-2">
+              <!-- File input -->
+              <div>
+                <input 
+                  type="file" 
+                  ref="fileInput"
+                  @change="handleFileSelect"
+                  accept="image/*"
+                  class="hidden"
+                />
+                <button 
+                  @click="$refs.fileInput.click()"
+                  :disabled="uploadLoading"
+                  class="text-sm bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg disabled:opacity-50"
+                >
+                  {{ uploadLoading ? 'Upload...' : 'Choisir une image' }}
+                </button>
+              </div>
+              
+              <!-- Drag and drop zone -->
+              <div 
+                @drop.prevent="handleDrop"
+                @dragover.prevent="isDragging = true"
+                @dragleave="isDragging = false"
+                :class="[
+                  'border-2 border-dashed rounded-lg p-3 text-center text-sm transition-colors',
+                  isDragging ? 'border-emerald-500 bg-emerald-50' : 'border-gray-300 hover:border-emerald-400'
+                ]"
+              >
+                <span class="text-gray-600">Ou glissez une image ici</span>
+              </div>
+              
+              <p v-if="uploadError" class="text-sm text-red-600">{{ uploadError }}</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Username input -->
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Nom d'utilisateur</label>
           <input 
@@ -38,14 +95,17 @@
             placeholder="Votre nom d'utilisateur"
           />
         </div>
+        
+        <!-- URL input (optional) -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Avatar (URL)</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Ou URL de l'avatar</label>
           <input 
             v-model="profileForm.avatar" 
             class="w-full border rounded-lg px-3 py-2"
             placeholder="https://..."
           />
         </div>
+        
         <div class="flex gap-2">
           <button 
             @click="updateProfile" 
@@ -197,8 +257,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { api, getSessions, deleteSession, getContacts, blockContact as apiBlockContact, unblockContact as apiUnblockContact, removeContact as apiRemoveContact, deleteAccount as apiDeleteAccount } from '../lib/api.js'
+import { ref, onMounted, computed } from 'vue'
+import { api, getSessions, deleteSession, getContacts, blockContact as apiBlockContact, unblockContact as apiUnblockContact, removeContact as apiRemoveContact, deleteAccount as apiDeleteAccount, uploadFile } from '../lib/api.js'
 
 const props = defineProps({ me: Object, token: String })
 const emit = defineEmits(['close', 'accountDeleted', 'profileUpdated'])
@@ -217,6 +277,31 @@ const profileForm = ref({ username: '', avatar: '' })
 const profileLoading = ref(false)
 const profileSuccess = ref(false)
 const profileError = ref('')
+const uploadLoading = ref(false)
+const uploadError = ref('')
+const isDragging = ref(false)
+const fileInput = ref(null)
+const showPreview = ref(true)
+
+// Computed property for avatar preview URL
+const avatarPreviewUrl = computed(() => {
+  const avatar = profileForm.value.avatar
+  if (!avatar || !showPreview.value) return null
+  
+  const apiBase = import.meta?.env?.VITE_API_BASE || "http://localhost:4000"
+  
+  // If it's already a full URL, return as is
+  if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
+    return avatar
+  }
+  
+  // If it's a relative path, prepend API_BASE
+  if (avatar.startsWith('/')) {
+    return apiBase + avatar
+  }
+  
+  return avatar
+})
 
 // Contacts
 const contacts = ref([])
@@ -234,7 +319,52 @@ const deleteError = ref('')
 onMounted(() => {
   profileForm.value.username = props.me.username || ''
   profileForm.value.avatar = props.me.avatar || ''
+  showPreview.value = true
 })
+
+function handlePreviewError() {
+  console.error('Failed to load avatar preview:', profileForm.value.avatar)
+  showPreview.value = false
+}
+
+async function handleFileSelect(event) {
+  const file = event.target.files[0]
+  if (file) {
+    await uploadAvatar(file)
+  }
+}
+
+async function handleDrop(event) {
+  isDragging.value = false
+  const file = event.dataTransfer.files[0]
+  if (file && file.type.startsWith('image/')) {
+    await uploadAvatar(file)
+  } else {
+    uploadError.value = 'Veuillez déposer une image valide'
+  }
+}
+
+async function uploadAvatar(file) {
+  // Validate file size (max 5MB)
+  if (file.size > 5 * 1024 * 1024) {
+    uploadError.value = 'L\'image est trop volumineuse (max 5MB)'
+    return
+  }
+  
+  uploadLoading.value = true
+  uploadError.value = ''
+  showPreview.value = true
+  
+  try {
+    const result = await uploadFile(props.token, file)
+    profileForm.value.avatar = result.url
+    uploadError.value = ''
+  } catch (e) {
+    uploadError.value = e.message
+  } finally {
+    uploadLoading.value = false
+  }
+}
 
 async function updateProfile() {
   profileLoading.value = true
