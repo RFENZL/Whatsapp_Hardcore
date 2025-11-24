@@ -6,13 +6,13 @@
         <button :class="['flex-1 py-2 rounded-xl', tab==='login'?'bg-emerald-500 text-white':'bg-gray-100']" @click="tab='login'">Connexion</button>
         <button :class="['flex-1 py-2 rounded-xl ml-2', tab==='register'?'bg-emerald-500 text-white':'bg-gray-100']" @click="tab='register'">Inscription</button>
       </div>
-      <div class="space-y-3">
+      <form @submit.prevent="submit" class="space-y-3">
         <input class="w-full border rounded-xl px-3 py-2" placeholder="Email" v-model="email" />
         <input v-if="tab==='register'" class="w-full border rounded-xl px-3 py-2" placeholder="Nom d'utilisateur" v-model="username" />
         <input type="password" class="w-full border rounded-xl px-3 py-2" placeholder="Mot de passe" v-model="password" />
         <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
-        <button @click="submit" :disabled="loading" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl py-2 font-medium">{{ loading ? '...' : tab==='register' ? 'Créer le compte' : 'Se connecter' }}</button>
-      </div>
+        <button type="submit" :disabled="loading" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl py-2 font-medium">{{ loading ? '...' : tab==='register' ? 'Créer le compte' : 'Se connecter' }}</button>
+      </form>
     </div>
   </div>
   <div v-else class="w-full h-screen overflow-hidden grid grid-cols-12">
