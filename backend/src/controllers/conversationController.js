@@ -76,8 +76,16 @@ exports.list = async (req, res) => {
       lastMessageAt: conv.lastMessageAt,
       unreadCount,
       isArchived: conv.archivedBy.some(id => String(id) === String(userId)),
-      isMuted: conv.mutedBy.some(id => String(id) === String(userId))
+      isMuted: conv.mutedBy.some(id => String(id) === String(userId)),
+      isPinned: conv.pinnedBy.some(id => String(id) === String(userId))
     };
+  });
+
+  // Trier : conversations épinglées en premier, puis par date du dernier message
+  result.sort((a, b) => {
+    if (a.isPinned && !b.isPinned) return -1;
+    if (!a.isPinned && b.isPinned) return 1;
+    return new Date(b.lastMessageAt) - new Date(a.lastMessageAt);
   });
 
   res.json(result);
@@ -103,7 +111,8 @@ exports.getById = async (req, res) => {
     ...conversation.toObject(),
     unreadCount,
     isArchived: conversation.archivedBy.some(id => String(id) === String(req.user._id)),
-    isMuted: conversation.mutedBy.some(id => String(id) === String(req.user._id))
+    isMuted: conversation.mutedBy.some(id => String(id) === String(req.user._id)),
+    isPinned: conversation.pinnedBy.some(id => String(id) === String(req.user._id))
   });
 };
 
@@ -166,6 +175,42 @@ exports.toggleMute = async (req, res) => {
   await conversation.save();
 
   res.json({ message: isMuted ? 'Conversation unmuted' : 'Conversation muted', isMuted: !isMuted });
+};
+
+// Épingler une conversation
+exports.pin = async (req, res) => {
+  const conversation = await Conversation.findById(req.params.id);
+  
+  if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
+  
+  if (!conversation.participants.some(p => String(p._id || p) === String(req.user._id))) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  if (!conversation.pinnedBy.some(id => String(id) === String(req.user._id))) {
+    conversation.pinnedBy.push(req.user._id);
+    await conversation.save();
+  }
+
+  res.json({ message: 'Conversation pinned' });
+};
+
+// Désépingler une conversation
+exports.unpin = async (req, res) => {
+  const conversation = await Conversation.findById(req.params.id);
+  
+  if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
+  
+  if (!conversation.participants.some(p => String(p._id || p) === String(req.user._id))) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  conversation.pinnedBy = conversation.pinnedBy.filter(
+    id => String(id) !== String(req.user._id)
+  );
+  await conversation.save();
+
+  res.json({ message: 'Conversation unpinned' });
 };
 
 // Supprimer une conversation (pour l'utilisateur uniquement)

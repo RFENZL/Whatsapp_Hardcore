@@ -51,6 +51,16 @@
           <Avatar :user="u" />
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2">
+              <button 
+                v-if="u.hasConversation" 
+                @click.stop="togglePin(u._id, u.conversationId)"
+                class="shrink-0 text-gray-400 hover:text-yellow-500 transition-colors"
+                :title="u.isPinned ? 'Désépingler' : 'Épingler'"
+              >
+                <svg class="w-4 h-4" :class="{ 'text-yellow-500': u.isPinned }" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
+                </svg>
+              </button>
               <span :class="['truncate', unread(u._id) ? 'font-semibold' : 'font-medium']">{{ u.username }}</span>
               <span
                 :class="[
@@ -195,6 +205,7 @@ async function loadConversations() {
           otherUser: { _id: String(c._id), username: c.group.name, avatar: c.group.avatar, isGroup: true },
           unread: c.unreadCount || 0,
           conversationId: c._id,
+          isPinned: c.isPinned || false,
           raw: c
         }
       } else {
@@ -205,6 +216,7 @@ async function loadConversations() {
           otherUser: other ? { _id: String(other._id), username: other.username, avatar: other.avatar, status: other.status } : { _id: String(c._id), username: 'Conversation' },
           unread: c.unreadCount || 0,
           conversationId: c._id,
+          isPinned: c.isPinned || false,
           raw: c
         }
       }
@@ -369,7 +381,9 @@ const allChats = computed(() => {
     if (convo.otherUser && convo.otherUser._id) {
       chatMap.set(convo.otherUser._id, {
         ...convo.otherUser,
-        hasConversation: true
+        hasConversation: true,
+        conversationId: convo.conversationId,
+        isPinned: convo.isPinned || false
       })
     }
   })
@@ -379,12 +393,22 @@ const allChats = computed(() => {
     if (contact && contact._id && !chatMap.has(contact._id)) {
       chatMap.set(contact._id, {
         ...contact,
-        hasConversation: false
+        hasConversation: false,
+        isPinned: false
       })
     }
   })
   
-  return Array.from(chatMap.values())
+  const chats = Array.from(chatMap.values())
+  
+  // Trier : conversations épinglées en premier
+  chats.sort((a, b) => {
+    if (a.isPinned && !b.isPinned) return -1
+    if (!a.isPinned && b.isPinned) return 1
+    return 0
+  })
+  
+  return chats
 })
 
 onMounted(refreshAll)
@@ -434,6 +458,31 @@ watch(() => props.socket, (s) => {
 async function logout(){
   try { await api('/api/auth/logout', { method: 'POST', token: props.token }) } catch {}
   window.location.reload()
+}
+
+async function togglePin(chatId, conversationId) {
+  if (!conversationId) return
+  
+  try {
+    const chat = allChats.value.find(c => c._id === chatId)
+    const isPinned = chat?.isPinned || false
+    
+    if (isPinned) {
+      await api(`/api/conversations/${conversationId}/unpin`, {
+        method: 'POST',
+        token: props.token
+      })
+    } else {
+      await api(`/api/conversations/${conversationId}/pin`, {
+        method: 'POST',
+        token: props.token
+      })
+    }
+    
+    await loadConversations()
+  } catch (e) {
+    console.error('Erreur épinglage:', e)
+  }
 }
 
 const filtered = computed(() => {

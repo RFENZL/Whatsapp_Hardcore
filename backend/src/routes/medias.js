@@ -38,6 +38,9 @@ router.get('/conversation/:conversationId', auth, ctrl.listByConversation);
 // Statistiques des médias
 router.get('/stats', auth, ctrl.stats);
 
+// Streaming d'un média
+router.get('/:id/stream', auth, ctrl.stream);
+
 // Obtenir un média
 router.get('/:id', auth, ctrl.getById);
 

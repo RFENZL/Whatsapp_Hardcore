@@ -46,18 +46,48 @@ const MessageSchema = new mongoose.Schema({
     readAt: { type: Date, default: Date.now }
   }],
   
-  status: { type: String, enum: ['sent', 'delivered', 'read'], default: 'sent' },
+  status: { type: String, enum: ['pending', 'sent', 'delivered', 'read'], default: 'pending' },
+  
+  // Timestamps pour chaque état
+  statusTimestamps: {
+    pending: { type: Date, default: Date.now },
+    sent: { type: Date, default: null },
+    delivered: { type: Date, default: null },
+    read: { type: Date, default: null }
+  },
   edited: { type: Boolean, default: false },
   editedAt: { type: Date, default: null },
   deleted: { type: Boolean, default: false },
   deletedAt: { type: Date, default: null },
   
   // Suppression pour moi uniquement
-  deletedFor: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
+  deletedFor: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  
+  // Message temporaire/éphémère
+  expiresAt: { type: Date, default: null, index: true },
+  
+  // Message épinglé dans le groupe
+  isPinned: { type: Boolean, default: false },
+  pinnedAt: { type: Date, default: null },
+  pinnedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null }
 });
 
 MessageSchema.index({ sender: 1, recipient: 1, createdAt: -1 });
 MessageSchema.index({ conversation: 1, createdAt: -1 });
 MessageSchema.index({ group: 1, createdAt: -1 });
+
+// Index texte pour la recherche
+MessageSchema.index({ content: 'text' });
+
+// Middleware pour mettre à jour les timestamps de statut
+MessageSchema.pre('save', function(next) {
+  if (this.isModified('status')) {
+    if (!this.statusTimestamps) {
+      this.statusTimestamps = {};
+    }
+    this.statusTimestamps[this.status] = new Date();
+  }
+  next();
+});
 
 module.exports = mongoose.model('Message', MessageSchema);

@@ -64,6 +64,12 @@ const ConversationSchema = new mongoose.Schema({
   mutedBy: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  }],
+
+  // Conversation épinglée par utilisateur
+  pinnedBy: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   }]
 });
 

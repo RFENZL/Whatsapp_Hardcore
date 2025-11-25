@@ -3,6 +3,7 @@ const Conversation = require('../models/Conversation');
 const User = require('../models/User');
 const Message = require('../models/Message');
 const { getIO } = require('../socket/io');
+const crypto = require('crypto');
 
 // Ensure there's at least one admin in the group. If none, promote a random/member (first) to admin.
 async function ensureAdminExists(group) {
@@ -60,7 +61,11 @@ exports.create = async (req, res) => {
       { user: req.user._id, role: 'admin' },
       ...memberIds.map(id => ({ user: id, role: 'member' }))
     ],
-    conversation: conversation._id
+    conversation: conversation._id,
+    memberHistory: [
+      { user: req.user._id, action: 'joined', by: req.user._id },
+      ...memberIds.map(id => ({ user: id, action: 'joined', by: req.user._id }))
+    ]
   });
 
   // Lier la conversation au groupe
@@ -445,4 +450,273 @@ exports.updateSettings = async (req, res) => {
   await group.save();
 
   res.json(group);
+};
+
+// Générer un lien d'invitation pour le groupe
+exports.generateInviteLink = async (req, res) => {
+  const { maxUses, expiresInDays } = req.body;
+  const group = await Group.findById(req.params.id);
+
+  if (!group) return res.status(404).json({ error: 'Group not found' });
+  if (!group.isActive) return res.status(404).json({ error: 'Group not found' });
+
+  // Seuls les admins peuvent générer des liens
+  if (!group.isAdmin(req.user._id)) {
+    return res.status(403).json({ error: 'Only admins can generate invite links' });
+  }
+
+  // Générer un code unique
+  const code = crypto.randomBytes(16).toString('hex');
+  
+  group.inviteLink = {
+    code,
+    enabled: true,
+    createdAt: new Date(),
+    createdBy: req.user._id,
+    expiresAt: expiresInDays ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000) : null,
+    maxUses: maxUses || null,
+    uses: 0
+  };
+
+  await group.save();
+
+  res.json({
+    inviteLink: `/groups/join/${code}`,
+    code,
+    expiresAt: group.inviteLink.expiresAt,
+    maxUses: group.inviteLink.maxUses
+  });
+};
+
+// Rejoindre un groupe via lien d'invitation
+exports.joinViaInvite = async (req, res) => {
+  const { code } = req.params;
+  const group = await Group.findOne({ 'inviteLink.code': code });
+
+  if (!group) return res.status(404).json({ error: 'Invalid invite link' });
+  if (!group.isActive) return res.status(404).json({ error: 'Group not found' });
+
+  // Vérifier que le lien est actif
+  if (!group.inviteLink.enabled) {
+    return res.status(400).json({ error: 'Invite link is disabled' });
+  }
+
+  // Vérifier l'expiration
+  if (group.inviteLink.expiresAt && group.inviteLink.expiresAt < new Date()) {
+    return res.status(400).json({ error: 'Invite link has expired' });
+  }
+
+  // Vérifier le nombre max d'utilisations
+  if (group.inviteLink.maxUses && group.inviteLink.uses >= group.inviteLink.maxUses) {
+    return res.status(400).json({ error: 'Invite link has reached maximum uses' });
+  }
+
+  // Vérifier que l'utilisateur n'est pas déjà membre
+  if (group.members.some(m => String(m.user) === String(req.user._id))) {
+    return res.status(400).json({ error: 'You are already a member of this group' });
+  }
+
+  // Vérifier que l'utilisateur n'est pas banni
+  if (group.bannedMembers && group.bannedMembers.some(b => String(b.user) === String(req.user._id))) {
+    return res.status(403).json({ error: 'You are banned from this group' });
+  }
+
+  // Ajouter le membre
+  group.members.push({ user: req.user._id, role: 'member' });
+  group.memberHistory.push({ user: req.user._id, action: 'joined', by: req.user._id });
+  group.inviteLink.uses += 1;
+
+  // Mettre à jour la conversation
+  const conversation = await Conversation.findById(group.conversation);
+  if (conversation && !conversation.participants.includes(req.user._id)) {
+    conversation.participants.push(req.user._id);
+    await conversation.save();
+  }
+
+  await group.save();
+
+  // Message système
+  await Message.create({
+    sender: req.user._id,
+    conversation: group.conversation,
+    group: group._id,
+    content: `${req.user.username} a rejoint le groupe via un lien d'invitation`,
+    type: 'system'
+  });
+
+  // Notifier via Socket.IO
+  const io = getIO();
+  if (io) {
+    group.members.forEach(member => {
+      io.to(String(member.user)).emit('group:member-joined', {
+        groupId: group._id,
+        userId: req.user._id,
+        username: req.user.username
+      });
+    });
+  }
+
+  res.json({ message: 'Joined group successfully', group });
+};
+
+// Désactiver le lien d'invitation
+exports.disableInviteLink = async (req, res) => {
+  const group = await Group.findById(req.params.id);
+
+  if (!group) return res.status(404).json({ error: 'Group not found' });
+  if (!group.isActive) return res.status(404).json({ error: 'Group not found' });
+
+  // Seuls les admins peuvent désactiver le lien
+  if (!group.isAdmin(req.user._id)) {
+    return res.status(403).json({ error: 'Only admins can disable invite links' });
+  }
+
+  if (group.inviteLink) {
+    group.inviteLink.enabled = false;
+  }
+
+  await group.save();
+
+  res.json({ message: 'Invite link disabled' });
+};
+
+// Bannir un membre du groupe
+exports.banMember = async (req, res) => {
+  const { userId, reason } = req.body;
+  const group = await Group.findById(req.params.id);
+
+  if (!group) return res.status(404).json({ error: 'Group not found' });
+  if (!group.isActive) return res.status(404).json({ error: 'Group not found' });
+
+  // Seuls les admins peuvent bannir
+  if (!group.isAdmin(req.user._id)) {
+    return res.status(403).json({ error: 'Only admins can ban members' });
+  }
+
+  // Ne peut pas bannir un admin
+  if (group.isAdmin(userId)) {
+    return res.status(400).json({ error: 'Cannot ban an admin' });
+  }
+
+  // Vérifier que l'utilisateur est membre
+  const memberIndex = group.members.findIndex(m => String(m.user) === String(userId));
+  if (memberIndex === -1) {
+    return res.status(400).json({ error: 'User is not a member' });
+  }
+
+  // Retirer le membre
+  group.members.splice(memberIndex, 1);
+
+  // Ajouter à la liste des bannis
+  if (!group.bannedMembers) {
+    group.bannedMembers = [];
+  }
+  group.bannedMembers.push({
+    user: userId,
+    bannedBy: req.user._id,
+    reason: reason || ''
+  });
+
+  // Ajouter à l'historique
+  group.memberHistory.push({
+    user: userId,
+    action: 'banned',
+    by: req.user._id
+  });
+
+  // Mettre à jour la conversation
+  const conversation = await Conversation.findById(group.conversation);
+  if (conversation) {
+    conversation.participants = conversation.participants.filter(
+      p => String(p) !== String(userId)
+    );
+    await conversation.save();
+  }
+
+  await group.save();
+
+  // Message système
+  const user = await User.findById(userId);
+  await Message.create({
+    sender: req.user._id,
+    conversation: group.conversation,
+    group: group._id,
+    content: `${user ? user.username : 'Un membre'} a été banni du groupe`,
+    type: 'system'
+  });
+
+  // Notifier via Socket.IO
+  const io = getIO();
+  if (io) {
+    io.to(String(userId)).emit('group:banned', { groupId: group._id });
+    group.members.forEach(member => {
+      io.to(String(member.user)).emit('group:member-banned', {
+        groupId: group._id,
+        userId
+      });
+    });
+  }
+
+  res.json({ message: 'Member banned successfully' });
+};
+
+// Débannir un membre
+exports.unbanMember = async (req, res) => {
+  const { userId } = req.body;
+  const group = await Group.findById(req.params.id);
+
+  if (!group) return res.status(404).json({ error: 'Group not found' });
+  if (!group.isActive) return res.status(404).json({ error: 'Group not found' });
+
+  // Seuls les admins peuvent débannir
+  if (!group.isAdmin(req.user._id)) {
+    return res.status(403).json({ error: 'Only admins can unban members' });
+  }
+
+  // Retirer de la liste des bannis
+  if (group.bannedMembers) {
+    group.bannedMembers = group.bannedMembers.filter(
+      b => String(b.user) !== String(userId)
+    );
+  }
+
+  await group.save();
+
+  res.json({ message: 'Member unbanned successfully' });
+};
+
+// Obtenir l'historique des membres
+exports.getMemberHistory = async (req, res) => {
+  const group = await Group.findById(req.params.id)
+    .populate('memberHistory.user', 'username avatar')
+    .populate('memberHistory.by', 'username');
+
+  if (!group) return res.status(404).json({ error: 'Group not found' });
+  if (!group.isActive) return res.status(404).json({ error: 'Group not found' });
+
+  // Vérifier que l'utilisateur est membre ou admin
+  if (!group.isMember(req.user._id)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  res.json({
+    history: group.memberHistory.sort((a, b) => b.timestamp - a.timestamp)
+  });
+};
+
+// Obtenir la liste des membres bannis
+exports.getBannedMembers = async (req, res) => {
+  const group = await Group.findById(req.params.id)
+    .populate('bannedMembers.user', 'username avatar')
+    .populate('bannedMembers.bannedBy', 'username');
+
+  if (!group) return res.status(404).json({ error: 'Group not found' });
+  if (!group.isActive) return res.status(404).json({ error: 'Group not found' });
+
+  // Seuls les admins peuvent voir la liste des bannis
+  if (!group.isAdmin(req.user._id)) {
+    return res.status(403).json({ error: 'Only admins can view banned members' });
+  }
+
+  res.json({ bannedMembers: group.bannedMembers || [] });
 };

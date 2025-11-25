@@ -20,6 +20,12 @@ router.post('/:id/unarchive', auth, ctrl.unarchive);
 // Muet/Démuet une conversation
 router.post('/:id/toggle-mute', auth, ctrl.toggleMute);
 
+// Épingler une conversation
+router.post('/:id/pin', auth, ctrl.pin);
+
+// Désépingler une conversation
+router.post('/:id/unpin', auth, ctrl.unpin);
+
 // Supprimer une conversation
 router.delete('/:id', auth, ctrl.remove);
 

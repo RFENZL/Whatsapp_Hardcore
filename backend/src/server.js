@@ -6,6 +6,7 @@ const { Server } = require('socket.io');
 const app = require('./app');
 const initSocket = require('./socket/handlers');
 const { setIO } = require('./socket/io');
+const { startCleanupJob } = require('./jobs/cleanupExpiredMessages');
 
 const PORT = process.env.PORT || 4000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/tpchat';
@@ -18,6 +19,10 @@ async function start() {
   });
   initSocket(io);
   setIO(io);
+  
+  // Démarrer le job de nettoyage des messages expirés (toutes les heures)
+  startCleanupJob(60 * 60 * 1000);
+  
   server.listen(PORT, () => {
     console.log(`http://localhost:${PORT}`);
   });
