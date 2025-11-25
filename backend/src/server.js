@@ -81,8 +81,9 @@ async function start() {
     setIO(io);
     logger.info('Main Socket.IO handlers initialized');
     
-    // Initialiser les namespaces Socket.IO
-    logger.info('Initializing Socket.IO namespaces...');
+    // Initialiser les namespaces Socket.IO - TEMPORARILY DISABLED FOR TESTING
+    logger.info('Skipping namespaces initialization for testing...');
+    /*
     try {
       initMessagesNamespace(io);
       logger.info('/messages namespace initialized');
@@ -109,6 +110,7 @@ async function start() {
       throw err;
     }
     logger.info('Socket.IO namespaces initialized (/messages, /notifications)');
+    */
     
     // Activer le logging détaillé des événements Socket.IO
     if (process.env.SOCKET_LOGGING === 'true') {

@@ -3,6 +3,8 @@ const Session = require('../models/Session');
 const Contact = require('../models/Contact');
 const Message = require('../models/Message');
 const Fuse = require('fuse.js');
+const { alertProfileModification, alertSecuritySettingsChange, alertAccountDeletion } = require('../utils/securityAlerts');
+const logger = require('../utils/logger');
 
 exports.getById = async (req, res) => {
   const user = await User.findById(req.params.id);
@@ -25,13 +27,41 @@ exports.list = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   const user = req.user;
   const { username, avatar, bio } = req.body;
-  if (username) user.username = username;
-  if (avatar !== undefined) user.avatar = avatar;
-  if (bio !== undefined) {
+  
+  // Suivre les changements pour l'alerte
+  const changes = {};
+  
+  if (username && username !== user.username) {
+    changes.username = { old: user.username, new: username };
+    user.username = username;
+  }
+  if (avatar !== undefined && avatar !== user.avatar) {
+    changes.avatar = { old: user.avatar ? 'changed' : 'none', new: avatar ? 'set' : 'removed' };
+    user.avatar = avatar;
+  }
+  if (bio !== undefined && bio !== user.bio) {
     if (bio.length > 500) return res.status(400).json({ error: 'Bio trop longue (max 500 caractères)' });
+    changes.bio = { old: user.bio ? 'changed' : 'none', new: bio ? 'set' : 'removed' };
     user.bio = bio;
   }
+  
   await user.save();
+  
+  // Envoyer l'alerte de modification de profil si des changements ont été faits
+  if (Object.keys(changes).length > 0) {
+    const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || '';
+    alertProfileModification({ user, changes, ipAddress }).catch(err => {
+      logger.error('Failed to send profile modification alert', { error: err.message });
+    });
+    
+    logger.logUserAction('profile_update', {
+      userId: user._id,
+      username: user.username,
+      changes,
+      ipAddress,
+    });
+  }
+  
   const { _id, status, lastSeen } = user;
   res.json({ _id, username: user.username, avatar: user.avatar, bio: user.bio, status, lastSeen });
 };
@@ -77,6 +107,19 @@ exports.deleteAccount = async (req, res) => {
     { isActive: false, logoutTime: new Date() }
   );
   
+  // Envoyer l'alerte de suppression de compte
+  const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || '';
+  alertAccountDeletion({ user, ipAddress }).catch(err => {
+    logger.error('Failed to send account deletion alert', { error: err.message });
+  });
+  
+  logger.logUserAction('account_deletion', {
+    userId: user._id,
+    username: user.username,
+    email: user.email,
+    ipAddress,
+  });
+  
   // Note: Les contacts, messages, etc. sont conservés mais l'utilisateur ne peut plus se connecter
   // Pour hard delete après 30 jours, créer un job cron séparé
   
@@ -97,6 +140,24 @@ exports.deleteSession = async (req, res) => {
   session.isActive = false;
   session.logoutTime = new Date();
   await session.save();
+  
+  // Alerte de modification des paramètres de sécurité
+  const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || '';
+  alertSecuritySettingsChange({
+    user: req.user,
+    action: 'delete_session',
+    details: { sessionId, location: session.location },
+    ipAddress,
+  }).catch(err => {
+    logger.error('Failed to send session deletion alert', { error: err.message });
+  });
+  
+  logger.logUserAction('session_deleted', {
+    userId: req.user._id,
+    sessionId,
+    ipAddress,
+  });
+  
   res.json({ message: 'Session deleted successfully' });
 };
 
@@ -113,10 +174,27 @@ exports.deleteAllSessions = async (req, res) => {
     query._id = { $ne: currentSessionId };
   }
   
-  await Session.updateMany(
+  const result = await Session.updateMany(
     query,
     { isActive: false, logoutTime: new Date() }
   );
+  
+  // Alerte de modification des paramètres de sécurité
+  const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || '';
+  alertSecuritySettingsChange({
+    user: req.user,
+    action: 'delete_all_sessions',
+    details: { sessionsDeleted: result.modifiedCount, exceptCurrent: !!currentSessionId },
+    ipAddress,
+  }).catch(err => {
+    logger.error('Failed to send all sessions deletion alert', { error: err.message });
+  });
+  
+  logger.logUserAction('all_sessions_deleted', {
+    userId: req.user._id,
+    sessionsDeleted: result.modifiedCount,
+    ipAddress,
+  });
   
   res.json({ message: 'All sessions terminated successfully' });
 };

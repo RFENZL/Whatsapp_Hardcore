@@ -1,26 +1,22 @@
 import { io } from "socket.io-client"
 
-// Fonction pour lire un cookie
-function getCookie(name) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop().split(';').shift();
-  return null;
-}
-
 export function createSocket(token) {
-  const base = import.meta?.env?.VITE_WS_BASE || undefined
+  // Connect directly to backend server at localhost:4000
+  const base = import.meta?.env?.VITE_WS_BASE || 'http://localhost:4000'
   
-  // Utiliser le token du cookie si disponible, sinon utiliser le paramètre token
-  const authToken = getCookie('token') || token;
+  console.log('[Socket] Creating socket connection', { base, providedToken: !!token })
   
+  // Socket.IO will automatically send cookies with withCredentials: true
+  // The httpOnly token cookie will be sent and read by the server
   const s = io(base, {
-    auth: { token: authToken },
-    withCredentials: true,
+    auth: token ? { token } : {},  // Only send token in auth if explicitly provided
+    withCredentials: true,  // This makes the browser send httpOnly cookies automatically
     autoConnect: true,
     reconnection: true,
     reconnectionAttempts: 20,
     reconnectionDelay: 500,
+    reconnectionDelayMax: 5000,
+    timeout: 20000,
     transports: ['websocket', 'polling']
   })
   

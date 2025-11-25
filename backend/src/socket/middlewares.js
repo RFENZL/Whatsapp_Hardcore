@@ -1,21 +1,62 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const logger = require('../utils/logger');
+const Sentry = require('@sentry/node');
 
 // Middleware d'authentification pour les namespaces Socket.IO
 async function authenticateSocket(socket, next) {
   try {
     const token = socket.handshake.auth?.token || socket.handshake.query?.token;
-    if (!token) return next(new Error('Unauthorized'));
+    if (!token) {
+      logger.logWebSocket('auth_failed', {
+        socketId: socket.id,
+        reason: 'no_token',
+        ip: socket.handshake.address,
+      });
+      return next(new Error('Unauthorized'));
+    }
     
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
     const user = await User.findById(decoded.id);
-    if (!user) return next(new Error('Unauthorized'));
+    if (!user) {
+      logger.logWebSocket('auth_failed', {
+        socketId: socket.id,
+        reason: 'user_not_found',
+        userId: decoded.id,
+      });
+      return next(new Error('Unauthorized'));
+    }
     
     socket.user = user;
+    
+    // Log de connexion réussie
+    logger.logWebSocketConnection({
+      socketId: socket.id,
+      userId: user._id,
+      username: user.username,
+      ip: socket.handshake.address,
+      userAgent: socket.handshake.headers['user-agent'],
+    });
+    
+    // Breadcrumb Sentry
+    Sentry.addBreadcrumb({
+      category: 'websocket',
+      message: 'WebSocket connection authenticated',
+      level: 'info',
+      data: {
+        socketId: socket.id,
+        userId: user._id.toString(),
+        username: user.username,
+      },
+    });
+    
     next();
   } catch (e) {
-    logger.warn('Socket auth failed', { error: e.message });
+    logger.warn('Socket auth failed', { 
+      error: e.message,
+      socketId: socket.id,
+      ip: socket.handshake.address,
+    });
     next(new Error('Unauthorized'));
   }
 }
@@ -30,8 +71,22 @@ function createRateLimiter(options = {}) {
       logger.warn('Rate limit exceeded', {
         socketId: socket.id,
         userId: socket.user?._id.toString(),
-        event
+        event,
+        ip: socket.handshake.address,
       });
+      
+      // Breadcrumb Sentry pour les rate limits
+      Sentry.addBreadcrumb({
+        category: 'websocket',
+        message: 'WebSocket rate limit exceeded',
+        level: 'warning',
+        data: {
+          socketId: socket.id,
+          userId: socket.user?._id.toString(),
+          event,
+        },
+      });
+      
       socket.emit('rate-limit-exceeded', { 
         event, 
         message: 'Too many requests, please slow down' 
@@ -258,9 +313,117 @@ class ConflictManager {
   }
 }
 
+// Middleware de logging pour tous les événements WebSocket
+function createEventLogger(options = {}) {
+  const {
+    logAllEvents = false,
+    eventsToLog = ['message:send', 'message:edit', 'message:delete', 'typing', 'status:change'],
+    excludeEvents = ['heartbeat', 'ping', 'pong'],
+  } = options;
+
+  return function logEvent(socket, eventName, data = {}) {
+    // Vérifier si l'événement doit être loggé
+    if (excludeEvents.includes(eventName)) {
+      return;
+    }
+
+    if (!logAllEvents && !eventsToLog.includes(eventName)) {
+      return;
+    }
+
+    const logData = {
+      socketId: socket.id,
+      userId: socket.user?._id?.toString(),
+      username: socket.user?.username,
+      event: eventName,
+      ip: socket.handshake.address,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Ne pas logger les données sensibles complètes
+    if (data && Object.keys(data).length > 0) {
+      logData.dataKeys = Object.keys(data);
+      
+      // Logger certaines propriétés non sensibles
+      if (data.conversationId) logData.conversationId = data.conversationId;
+      if (data.messageId) logData.messageId = data.messageId;
+      if (data.groupId) logData.groupId = data.groupId;
+    }
+
+    logger.logWebSocketMessage(eventName, logData);
+
+    // Breadcrumb Sentry pour les événements importants
+    const importantEvents = ['message:send', 'message:edit', 'message:delete', 'status:change'];
+    if (importantEvents.includes(eventName)) {
+      Sentry.addBreadcrumb({
+        category: 'websocket',
+        message: `WebSocket event: ${eventName}`,
+        level: 'info',
+        data: logData,
+      });
+    }
+  };
+}
+
+// Wrapper pour enregistrer les erreurs WebSocket
+function handleSocketError(socket, error, context = {}) {
+  const errorData = {
+    socketId: socket.id,
+    userId: socket.user?._id?.toString(),
+    username: socket.user?.username,
+    error: error.message,
+    stack: error.stack,
+    ip: socket.handshake.address,
+    ...context,
+  };
+
+  logger.logError('WebSocket error', error, errorData);
+
+  // Capturer l'erreur dans Sentry
+  Sentry.captureException(error, {
+    tags: {
+      type: 'websocket',
+      socketId: socket.id,
+    },
+    user: socket.user ? {
+      id: socket.user._id.toString(),
+      username: socket.user.username,
+    } : undefined,
+    contexts: {
+      websocket: errorData,
+    },
+  });
+}
+
+// Middleware pour tracker la déconnexion
+function trackDisconnection(socket, reason) {
+  logger.logWebSocketDisconnection({
+    socketId: socket.id,
+    userId: socket.user?._id?.toString(),
+    username: socket.user?.username,
+    reason,
+    ip: socket.handshake.address,
+  });
+
+  // Breadcrumb Sentry
+  Sentry.addBreadcrumb({
+    category: 'websocket',
+    message: 'WebSocket disconnection',
+    level: 'info',
+    data: {
+      socketId: socket.id,
+      userId: socket.user?._id?.toString(),
+      reason,
+    },
+  });
+}
+
 module.exports = {
   authenticateSocket,
   createRateLimiter,
   HeartbeatManager,
-  ConflictManager
+  ConflictManager,
+  createEventLogger,
+  handleSocketError,
+  trackDisconnection,
 };

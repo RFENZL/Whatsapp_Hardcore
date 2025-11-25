@@ -2,6 +2,8 @@ const Contact = require('../models/Contact');
 const User = require('../models/User');
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
+const { alertContactAdded, alertContactBlocked, alertContactUnblocked } = require('../utils/securityAlerts');
+const logger = require('../utils/logger');
 
 // GET /api/contacts
 exports.list = async (req, res) => {
@@ -48,6 +50,23 @@ exports.add = async (req, res) => {
     { $setOnInsert: { blocked: false } },
     { new: true, upsert: true }
   );
+  
+  // Envoyer l'alerte d'ajout de contact
+  const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || '';
+  alertContactAdded({ 
+    user: req.user, 
+    contact: { _id: contact.contact._id, username: contact.contact.username },
+    ipAddress 
+  }).catch(err => {
+    logger.error('Failed to send contact added alert', { error: err.message });
+  });
+  
+  logger.logUserAction('contact_added', {
+    userId: req.user._id,
+    contactId: contact.contact._id,
+    contactUsername: contact.contact.username,
+    ipAddress,
+  });
 
   res.status(201).json({
     _id: contact._id,
@@ -115,6 +134,23 @@ exports.block = async (req, res) => {
     // Supprimer la conversation
     await Conversation.findByIdAndDelete(conversation._id);
   }
+  
+  // Envoyer l'alerte de blocage de contact
+  const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || '';
+  alertContactBlocked({
+    user: req.user,
+    blockedUser: { _id: contact.contact._id, username: contact.contact.username },
+    ipAddress,
+  }).catch(err => {
+    logger.error('Failed to send contact blocked alert', { error: err.message });
+  });
+  
+  logger.logUserAction('contact_blocked', {
+    userId: req.user._id,
+    blockedUserId: contact.contact._id,
+    blockedUsername: contact.contact.username,
+    ipAddress,
+  });
 
   res.json(contact);
 };
@@ -128,6 +164,24 @@ exports.unblock = async (req, res) => {
     { new: true }
   ).populate('contact', 'username avatar status lastSeen');
   if (!contact) return res.status(404).json({ error: 'contact not found' });
+  
+  // Envoyer l'alerte de déblocage de contact
+  const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress || '';
+  alertContactUnblocked({
+    user: req.user,
+    unblockedUser: { _id: contact.contact._id, username: contact.contact.username },
+    ipAddress,
+  }).catch(err => {
+    logger.error('Failed to send contact unblocked alert', { error: err.message });
+  });
+  
+  logger.logUserAction('contact_unblocked', {
+    userId: req.user._id,
+    unblockedUserId: contact.contact._id,
+    unblockedUsername: contact.contact.username,
+    ipAddress,
+  });
+  
   res.json(contact);
 };
 
