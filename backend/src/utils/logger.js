@@ -235,26 +235,18 @@ logger.logUnauthorizedAccess = function(data) {
 };
 
 /**
- * Envoyer une alerte critique (Slack)
+ * Envoyer une alerte critique
  * @param {string} message - Message de l'alerte
  * @param {Error} error - Erreur éventuelle
  * @param {Object} context - Contexte
  */
 logger.sendCriticalAlert = async function(message, error, context = {}) {
-  try {
-    // Import dynamique pour éviter les dépendances circulaires
-    const { sendErrorAlert } = require('./slackNotifier');
-    
-    await sendErrorAlert({
-      title: 'Alerte Critique',
-      message,
-      error,
-      data: context,
-    });
-  } catch (err) {
-    // Ne pas planter si l'alerte Slack échoue
-    this.error('Failed to send critical alert', { error: err.message });
-  }
+  // Logger l'alerte critique
+  this.error(`CRITICAL ALERT: ${message}`, {
+    error: error?.message || error,
+    stack: error?.stack,
+    ...context,
+  });
 };
 
 /**

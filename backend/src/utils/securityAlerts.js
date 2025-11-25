@@ -1,5 +1,4 @@
 const logger = require('./logger');
-const { sendSecurityAlert, sendWarningAlert } = require('./slackNotifier');
 const Sentry = require('@sentry/node');
 
 /**
@@ -41,15 +40,8 @@ async function alertNewLogin({ user, session, isNewLocation = false }) {
       },
     });
 
-    // Si c'est une nouvelle localisation, envoyer une alerte de sécurité
+    // Si c'est une nouvelle localisation, logger un avertissement
     if (isNewLocation) {
-      await sendSecurityAlert({
-        title: 'Nouvelle connexion depuis un emplacement inhabituel',
-        message: `L'utilisateur ${user.username} (${user.email}) s'est connecté depuis une nouvelle localisation.`,
-        user: `${user.username} (${user.email})`,
-        data,
-      });
-
       logger.warn('New location login detected', {
         userId: user._id,
         username: user.username,
@@ -92,20 +84,16 @@ async function alertProfileModification({ user, changes, ipAddress }) {
       },
     });
 
-    // Alerte Slack pour les modifications importantes
+    // Logger les modifications sensibles
     const sensitiveFields = ['email', 'password', 'username'];
     const isSensitive = Object.keys(changes).some(field => sensitiveFields.includes(field));
 
     if (isSensitive) {
-      await sendSecurityAlert({
-        title: 'Modification de profil sensible',
-        message: `L'utilisateur ${user.username} a modifié son profil (champs: ${changedFields})`,
-        user: `${user.username} (${user.email})`,
-        data: {
-          'Champs modifiés': changedFields,
-          'IP Address': ipAddress,
-          'Timestamp': new Date().toISOString(),
-        },
+      logger.warn('Sensitive profile modification', {
+        userId: user._id,
+        username: user.username,
+        changedFields,
+        ipAddress,
       });
     }
   } catch (error) {
@@ -140,18 +128,6 @@ async function alertSecuritySettingsChange({ user, action, details, ipAddress })
         userId: user._id.toString(),
         username: user.username,
         action,
-      },
-    });
-
-    await sendSecurityAlert({
-      title: 'Modification des paramètres de sécurité',
-      message: `L'utilisateur ${user.username} a effectué l'action: ${action}`,
-      user: `${user.username} (${user.email})`,
-      data: {
-        'Action': action,
-        'Détails': JSON.stringify(details),
-        'IP Address': ipAddress,
-        'Timestamp': new Date().toISOString(),
       },
     });
   } catch (error) {
@@ -221,18 +197,6 @@ async function alertContactBlocked({ user, blockedUser, ipAddress }) {
         blockedUserId: blockedUser._id.toString(),
       },
     });
-
-    // Alerte Slack pour les blocages (peut indiquer du harcèlement)
-    await sendWarningAlert({
-      title: 'Contact bloqué',
-      message: `L'utilisateur ${user.username} a bloqué ${blockedUser.username}`,
-      data: {
-        'Utilisateur': `${user.username} (${user.email})`,
-        'Contact bloqué': `${blockedUser.username}`,
-        'IP Address': ipAddress,
-        'Timestamp': new Date().toISOString(),
-      },
-    });
   } catch (error) {
     logger.error('Failed to send contact blocked alert', { error: error.message });
   }
@@ -295,16 +259,6 @@ async function alertAccountDeletion({ user, ipAddress }) {
         username: user.username,
       },
     });
-
-    await sendSecurityAlert({
-      title: 'Suppression de compte',
-      message: `L'utilisateur ${user.username} a supprimé son compte`,
-      user: `${user.username} (${user.email})`,
-      data: {
-        'IP Address': ipAddress,
-        'Timestamp': new Date().toISOString(),
-      },
-    });
   } catch (error) {
     logger.error('Failed to send account deletion alert', { error: error.message });
   }
@@ -336,19 +290,6 @@ async function alertFailedLoginAttempts({ email, ipAddress, attempts }) {
         attempts,
       },
     });
-
-    if (attempts >= 5) {
-      await sendSecurityAlert({
-        title: 'Tentatives de connexion échouées suspectes',
-        message: `${attempts} tentatives de connexion échouées pour l'email ${email}`,
-        user: email,
-        data: {
-          'IP Address': ipAddress,
-          'Tentatives': attempts,
-          'Timestamp': new Date().toISOString(),
-        },
-      });
-    }
   } catch (error) {
     logger.error('Failed to send failed login attempts alert', { error: error.message });
   }
