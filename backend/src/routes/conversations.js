@@ -32,4 +32,7 @@ router.delete('/:id', auth, ctrl.remove);
 // Marquer tous les messages comme lus
 router.post('/:id/mark-read', auth, ctrl.markAllRead);
 
+// Changer la couleur de fond
+router.post('/:id/background-color', auth, ctrl.setBackgroundColor);
+
 module.exports = router;

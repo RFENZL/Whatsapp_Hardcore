@@ -3,9 +3,13 @@ const API_BASE = import.meta?.env?.VITE_API_BASE || "";
 export async function api(path, { method = "GET", token, body } = {}) {
   const url = (API_BASE || "") + path; // path doit commencer par /
   const headers = {
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {})
+    "Content-Type": "application/json"
   };
+  
+  // Support optionnel du token via Authorization header pour compatibilité
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
 
   // Force no-cache / no-store on API calls to avoid 304 responses from browser caches
   // which break the app flow (we expect fresh JSON each request).
@@ -15,6 +19,7 @@ export async function api(path, { method = "GET", token, body } = {}) {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
+    credentials: 'include', // Envoyer les cookies automatiquement
     // ensure the browser does not serve a cached response
     cache: 'no-store'
   };
@@ -55,9 +60,8 @@ export async function uploadFile(token, file) {
 
   const res = await fetch(url, {
     method: "POST",
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
-    },
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: 'include', // Envoyer les cookies
     body: formData
   });
 
