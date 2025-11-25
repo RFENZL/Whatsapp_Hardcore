@@ -345,15 +345,21 @@ function onMsg(message){
     messageId: message._id, 
     sender: message.sender,
     conversation: message.conversation,
-    currentPeer: props.peer
+    recipient: message.recipient,
+    currentPeer: props.peer,
+    peerKeys: Object.keys(props.peer || {})
   })
   
   // Check if message belongs to current conversation
-  if (!props.peer) return
+  if (!props.peer) {
+    console.log('[ChatPane] No peer, ignoring message')
+    return
+  }
   
   // Handle both sender as object or string
   const sId = message.sender?._id ? String(message.sender._id) : String(message.sender)
   const convId = message.conversation ? String(message.conversation) : null
+  const rId = message.recipient ? String(message.recipient) : null
   
   // For conversations, match by conversationId
   // For direct messages without conversation, match by sender/recipient
@@ -362,20 +368,25 @@ function onMsg(message){
   if (props.peer.conversationId && convId) {
     // Match by conversation ID
     matches = String(props.peer.conversationId) === convId
+    console.log('[ChatPane] Checking by conversationId', {
+      peerConvId: String(props.peer.conversationId),
+      messageConvId: convId,
+      matches
+    })
   } else if (props.peer._id) {
     // Match by peer ID (sender or recipient)
     const peerId = String(props.peer._id)
-    const rId = message.recipient ? String(message.recipient) : null
-    matches = sId === peerId || rId === peerId
+    matches = sId === peerId || rId === peerId || (convId && convId === peerId)
+    console.log('[ChatPane] Checking by peer ID', {
+      peerId,
+      senderId: sId,
+      recipientId: rId,
+      convId,
+      matches
+    })
   }
   
-  console.log('[ChatPane] Message match check', { 
-    peerConvId: props.peer.conversationId,
-    messageConvId: convId,
-    peerId: props.peer._id,
-    senderId: sId,
-    matches 
-  })
+  console.log('[ChatPane] Final match result:', matches)
   
   if (matches) {
     const stick = atBottom() || sId === String(props.me._id)

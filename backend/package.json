@@ -9,7 +9,8 @@
     "dev": "nodemon src/server.js",
     "test": "mocha --timeout 25000 \"test/**/*.test.js\"",
     "coverage": "nyc -r text -r html -r lcov npm run test",
-    "serve:dist": "node src/server.js"
+    "serve:dist": "node src/server.js",
+    "test:monitoring": "node test-monitoring.js"
   },
   "dependencies": {
     "@sentry/node": "^7.120.4",

@@ -6,6 +6,7 @@ const Session = require('../models/Session');
 const logger = require('../utils/logger');
 const { sendVerificationEmail, sendPasswordResetEmail, sendNewSessionNotification } = require('../utils/email');
 const { getLocationFromIP } = require('../utils/geolocation');
+const { alertNewLogin } = require('../utils/securityAlerts');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'devsecret';
 const REFRESH_SECRET = process.env.REFRESH_SECRET || crypto.randomBytes(64).toString('hex');
@@ -52,12 +53,17 @@ exports.register = async (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
     const location = await getLocationFromIP(ipAddress);
     
-    await Session.create({
+    const session = await Session.create({
       user: user._id,
       ipAddress,
       userAgent,
       location,
       isActive: true
+    });
+    
+    // Envoyer l'alerte de nouvelle inscription (en arrière-plan)
+    alertNewLogin({ user, session, isNewLocation: true }).catch(err => {
+      logger.error('Failed to send registration alert', { userId: user._id, error: err.message });
     });
     
     const token = signToken(user);
@@ -162,6 +168,11 @@ exports.login = async (req, res) => {
       logger.error('Failed to send session notification', { userId: user._id, error: err.message });
     });
   }
+  
+  // Envoyer l'alerte de connexion (en arrière-plan)
+  alertNewLogin({ user, session, isNewLocation: isNewLocation && recentSessions.length > 0 }).catch(err => {
+    logger.error('Failed to send login alert', { userId: user._id, error: err.message });
+  });
   
   const token = signToken(user);
   const refreshToken = signRefreshToken(user);

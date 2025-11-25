@@ -31,9 +31,65 @@ Sentry.init({
   tracesSampleRate: process.env.SENTRY_TRACES_SAMPLE_RATE
     ? Number(process.env.SENTRY_TRACES_SAMPLE_RATE)
     : 0.1,
+  // Activer le profiling des performances
+  profilesSampleRate: process.env.SENTRY_PROFILES_SAMPLE_RATE
+    ? Number(process.env.SENTRY_PROFILES_SAMPLE_RATE)
+    : 0.1,
+  // Intégration avec Express
+  integrations: [
+    new Sentry.Integrations.Http({ tracing: true }),
+    new Sentry.Integrations.Express({ app }),
+  ],
+  // Capturer les breadcrumbs supplémentaires
+  beforeBreadcrumb(breadcrumb, hint) {
+    // Enrichir les breadcrumbs
+    if (breadcrumb.category === 'http') {
+      breadcrumb.data = breadcrumb.data || {};
+      breadcrumb.data.environment = process.env.NODE_ENV;
+    }
+    return breadcrumb;
+  },
 });
 
+// Request handler avec tracing
 app.use(Sentry.Handlers.requestHandler());
+app.use(Sentry.Handlers.tracingHandler());
+
+// Middleware pour ajouter le context utilisateur à Sentry
+app.use((req, res, next) => {
+  if (req.user) {
+    Sentry.setUser({
+      id: req.user._id.toString(),
+      username: req.user.username,
+      email: req.user.email,
+    });
+    
+    // Ajouter des breadcrumbs personnalisés
+    Sentry.addBreadcrumb({
+      category: 'user',
+      message: `User action: ${req.method} ${req.path}`,
+      level: 'info',
+      data: {
+        userId: req.user._id.toString(),
+        username: req.user.username,
+        method: req.method,
+        path: req.path,
+      },
+    });
+  }
+  
+  // Ajouter le contexte de la requête
+  Sentry.setContext('request', {
+    method: req.method,
+    url: req.url,
+    headers: {
+      'user-agent': req.headers['user-agent'],
+    },
+    ip: req.ip,
+  });
+  
+  next();
+});
 
 app.use(helmet());
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || true, credentials: true }));

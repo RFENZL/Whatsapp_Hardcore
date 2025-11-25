@@ -199,7 +199,27 @@ const API_BASE = import.meta?.env?.VITE_API_BASE || "";
 const quickReactions = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
 const isSystem = computed(() => (props.m && (props.m.type === 'system' || props.m.type === 'notification')));
-const isMe = computed(() => String(props.m.sender) === String(props.me._id));
+
+// Normalize IDs to strings for comparison
+const isMe = computed(() => {
+  if (!props.m || !props.me) return false;
+  
+  // Extract sender ID
+  let senderId = props.m.sender;
+  if (typeof senderId === 'object' && senderId !== null) {
+    senderId = senderId._id || senderId.id;
+  }
+  
+  // Extract current user ID
+  let myId = props.me._id || props.me.id || props.me;
+  if (typeof myId === 'object' && myId !== null) {
+    myId = myId._id || myId.id;
+  }
+  
+  // Compare as strings
+  return String(senderId) === String(myId);
+});
+
 const base = "max-w-[75%] rounded-2xl px-3 py-2 text-sm shadow-sm";
 
 const time = computed(() => {

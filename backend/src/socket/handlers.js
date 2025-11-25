@@ -60,18 +60,64 @@ module.exports = function initSocket(io) {
     logger.info('Using in-memory Map for online users management');
   }
 
+  // Log ALL connection attempts before middleware
+  io.engine.on("connection", (rawSocket) => {
+    logger.info('Raw Socket.IO engine connection', { 
+      socketId: rawSocket.id,
+      transport: rawSocket.transport?.name || 'unknown'
+    });
+    
+    rawSocket.on('close', (reason) => {
+      logger.info('Raw socket closed', { socketId: rawSocket.id, reason });
+    });
+    
+    rawSocket.on('error', (err) => {
+      logger.error('Raw socket error', { socketId: rawSocket.id, error: err.message });
+    });
+  });
+
   io.use(async (socket, next) => {
+    logger.info('Socket.IO middleware called', { socketId: socket.id });
+    
     try {
-      const token = socket.handshake.auth?.token || socket.handshake.query?.token;
-      if (!token) return next(new Error('Unauthorized'));
+      // Try to get token from auth, query, or cookies
+      let token = socket.handshake.auth?.token || socket.handshake.query?.token;
+      
+      // If no token in auth/query, try to get it from cookies
+      if (!token && socket.handshake.headers.cookie) {
+        const cookies = socket.handshake.headers.cookie.split(';').reduce((acc, cookie) => {
+          const [key, value] = cookie.trim().split('=');
+          acc[key] = value;
+          return acc;
+        }, {});
+        token = cookies.token;
+      }
+      
+      logger.info('Socket connection attempt', { 
+        socketId: socket.id, 
+        hasAuthToken: !!socket.handshake.auth?.token,
+        hasQueryToken: !!socket.handshake.query?.token,
+        hasCookieToken: !!token,
+        cookies: socket.handshake.headers.cookie ? 'present' : 'absent'
+      });
+      
+      if (!token) {
+        logger.warn('Socket connection rejected: no token', { socketId: socket.id });
+        return next(new Error('Unauthorized - No token'));
+      }
+      
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
       const user = await User.findById(decoded.id);
-      if (!user) return next(new Error('Unauthorized'));
+      if (!user) {
+        logger.warn('Socket connection rejected: user not found', { userId: decoded.id, socketId: socket.id });
+        return next(new Error('Unauthorized - User not found'));
+      }
       socket.user = user;
+      logger.info('Socket authenticated successfully', { userId: user._id.toString(), username: user.username, socketId: socket.id });
       next();
     } catch (e) {
-      logger.warn('Socket auth failed', { error: e.message });
-      next(new Error('Unauthorized'));
+      logger.error('Socket auth failed', { error: e.message, stack: e.stack, socketId: socket.id });
+      next(new Error('Unauthorized - ' + e.message));
     }
   });
 
@@ -80,7 +126,9 @@ module.exports = function initSocket(io) {
     logger.info(`User connected: ${user.username}`, { userId: user._id.toString(), socketId: socket.id });
 
     // Rejoindre la room de l'utilisateur
-    socket.join(user._id.toString());
+    const userRoom = user._id.toString();
+    socket.join(userRoom);
+    logger.info(`User joined room: ${userRoom}`, { socketId: socket.id });
 
     // Rejoindre les rooms de toutes les conversations de l'utilisateur
     const userConversations = await Conversation.find({
@@ -88,7 +136,9 @@ module.exports = function initSocket(io) {
     }).select('_id');
     
     userConversations.forEach(conv => {
-      socket.join(`conversation:${conv._id.toString()}`);
+      const convRoom = `conversation:${conv._id.toString()}`;
+      socket.join(convRoom);
+      logger.info(`User joined conversation room: ${convRoom}`, { socketId: socket.id });
     });
 
     // Gérer les utilisateurs en ligne
