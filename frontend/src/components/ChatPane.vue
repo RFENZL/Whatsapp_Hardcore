@@ -36,7 +36,7 @@
                 <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
               </svg>
             </button>
-            <div v-if="showMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-10">
+            <div v-if="showMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-50">
               <button @click="handleAddContact" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm">➕ Ajouter aux contacts</button>
               <button @click="handleChangeBackground" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm">🎨 Changer le fond</button>
               <button @click="handleBlockContact" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-orange-600">🚫 Bloquer</button>
@@ -86,7 +86,7 @@
     <AddMembersModal v-if="showAddMembersModal" :conversationId="props.peer._id" :token="props.token" @close="() => { showAddMembersModal = false }" @added="onMemberAdded" />
     
     <!-- Modal de sélection de couleur -->
-    <div v-if="showColorPicker" @click.self="showColorPicker = false" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
+    <div v-if="showColorPicker" @click.self="showColorPicker = false" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div class="bg-white rounded-lg p-6 w-[500px] max-w-[90vw]">
         <h3 class="text-lg font-semibold mb-4">Choisir une couleur de fond</h3>
         
@@ -529,7 +529,6 @@ async function sendFile(file){
     clientId,
     sender: String(props.me._id),
     recipient: String(props.peer._id),
-    content: file.name,
     type,
     mediaUrl: null,
     mediaName: file.name,
@@ -557,6 +556,19 @@ async function sendFile(file){
       composerRef.value.setUploadProgress(80);
     }
     
+
+    // ✅ FIX : on met à jour le message local avec la vraie URL
+    const idx = messages.value.findIndex(x => x.clientId === clientId);
+    if (idx !== -1) {
+      messages.value[idx] = {
+        ...messages.value[idx],
+        mediaUrl: uploaded.url,
+        mediaName: uploaded.originalName || file.name,
+        mediaSize: uploaded.size,
+        mediaMimeType: uploaded.mimeType || mime
+      };
+    }
+
     const common = {
       content: file.name,
       clientId,
@@ -569,6 +581,7 @@ async function sendFile(file){
     const body = props.peer.isGroup 
       ? { ...common, conversation_id: props.peer._id } 
       : { ...common, recipient_id: props.peer._id };
+
     await api(`/api/messages`, { method: 'POST', token: props.token, body });
     
     if (composerRef.value) {
@@ -586,8 +599,10 @@ async function sendFile(file){
     if (composerRef.value) {
       composerRef.value.setUploadProgress(0);
     }
+    console.error(e);
   }
 }
+
 
 function typingPing(){
   if (props.socket && props.socket.connected) {

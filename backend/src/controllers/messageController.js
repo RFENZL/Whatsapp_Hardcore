@@ -86,10 +86,11 @@ exports.create = async (req, res) => {
   if (media_id) {
     messageData.media = media_id;
   } else if (type && type !== 'text' && type !== 'system') {
-    if (mediaUrl) messageData.mediaUrl = mediaUrl;
-    if (mediaName) messageData.mediaName = mediaName;
-    if (mediaSize != null) messageData.mediaSize = mediaSize;
-    if (mediaMimeType) messageData.mediaMimeType = mediaMimeType;
+    // Toujours inclure les champs média pour les messages de type média
+    messageData.mediaUrl = mediaUrl || '';
+    messageData.mediaName = mediaName || '';
+    messageData.mediaSize = mediaSize || 0;
+    messageData.mediaMimeType = mediaMimeType || '';
   }
 
   // Répondre à un message

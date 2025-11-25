@@ -38,14 +38,18 @@
             <div v-else-if="kind === 'text'">
               <span v-html="renderContentWithMentions(m.content)"></span>
             </div>
-        <div v-else-if="kind === 'image' && fullMediaUrl" class="space-y-1">
-          <a :href="fullMediaUrl" target="_blank" rel="noopener" class="block">
+        <div v-else-if="kind === 'image'" class="space-y-1">
+          <a :href="fullMediaUrl || '#'" target="_blank" rel="noopener" class="block">
             <img
+              v-if="fullMediaUrl"
               :src="fullMediaUrl"
               :alt="m.mediaName || 'Image'"
               class="max-h-64 max-w-full rounded-lg object-contain cursor-pointer hover:opacity-90 transition-opacity"
               @error="handleImageError"
             />
+            <div v-else class="text-xs text-gray-400 italic p-4 bg-gray-100 rounded">
+              Chargement de l'image...
+            </div>
           </a>
           <div v-if="m.content && m.content !== m.mediaName" class="text-xs text-gray-600">
             {{ m.content }}
@@ -240,6 +244,11 @@ const groupedReactions = computed(() => {
 const fullMediaUrl = computed(() => {
   const url = props.m.mediaUrl;
   if (!url) return null;
+  
+  // Si c'est une URL blob (temporaire), retourner telle quelle
+  if (url.startsWith('blob:')) {
+    return url;
+  }
   
   // Get API_BASE directly from import.meta.env
   const apiBase = import.meta?.env?.VITE_API_BASE || "http://localhost:4000";
