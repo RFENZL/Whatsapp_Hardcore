@@ -6,9 +6,16 @@ const UserSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true, minlength: 3, trim: true },
   password: { type: String, required: true, minlength: 6, select: false },
   avatar: { type: String, default: '' },
+  bio: { type: String, default: '', maxlength: 500 },
   status: { type: String, enum: ['online', 'offline'], default: 'offline' },
   createdAt: { type: Date, default: Date.now },
-  lastSeen: { type: Date, default: null }
+  lastSeen: { type: Date, default: null },
+  refreshToken: { type: String, select: false },
+  isEmailVerified: { type: Boolean, default: false },
+  emailVerificationToken: { type: String, select: false },
+  passwordResetToken: { type: String, select: false },
+  passwordResetExpires: { type: Date, select: false },
+  deletedAt: { type: Date, default: null, select: false }
 });
 
 UserSchema.pre('save', async function(next) {

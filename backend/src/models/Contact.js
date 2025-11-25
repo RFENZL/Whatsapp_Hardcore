@@ -16,6 +16,15 @@ const ContactSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  isFavorite: {
+    type: Boolean,
+    default: false
+  },
+  notes: {
+    type: String,
+    default: '',
+    maxlength: 1000
+  },
   createdAt: {
     type: Date,
     default: Date.now

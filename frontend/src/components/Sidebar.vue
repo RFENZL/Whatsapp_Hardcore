@@ -159,13 +159,12 @@ import Avatar from "./Avatar.vue"
 import CreateGroup from "./CreateGroup.vue"
 import { api } from "../lib/api.js"
 
-const props = defineProps({ me: Object, token: String, onSelectPeer: Function, currentPeer: Object, socket: Object })
+const props = defineProps({ me: Object, onSelectPeer: Function, currentPeer: Object, socket: Object })
 
 const contacts = ref([])
 const conversations = ref([])
 const convToGroup = ref({})
 const groupOnline = ref({})
-const memberToConvs = ref({})
 const query = ref("")
 const typingMap = ref({})
 const unreadMap = ref({})
@@ -224,26 +223,13 @@ async function loadConversations() {
 
     conversations.value = normalized
     const map = {}
-    const memberMap = {}
     for (const c of normalized) {
       map[c.otherUser._id] = c.unread || 0
       // store mapping conversationId -> groupId when available
       if (c.raw && c.raw.type === 'group' && c.raw.group) {
         convToGroup.value[String(c._id)] = String(c.raw.group._id || c.raw.group)
       }
-      // index participants -> conversation for quick updates
-      if (c.raw && c.raw.participants && c.raw.participants.length) {
-        for (const p of c.raw.participants) {
-          const pid = String(p._id || p)
-          if (!memberMap[pid]) memberMap[pid] = new Set()
-          memberMap[pid].add(String(c._id))
-        }
-      }
     }
-    // convert sets to arrays for storage
-    const mtc = {}
-    for (const k of Object.keys(memberMap)) mtc[k] = Array.from(memberMap[k])
-    memberToConvs.value = mtc
     unreadMap.value = map
     // load online counts for groups
     loadGroupCounts().catch(()=>{})
@@ -281,7 +267,7 @@ async function loadGroupCounts(){
         const groupId = convToGroup.value[convId] || (convo.raw.group && (convo.raw.group._id || convo.raw.group))
         if (!groupId) { map[convId] = 0; continue }
         try{
-          const g = await api(`/api/groups/${groupId}`, { token: props.token })
+          const g = await api(`/api/groups/${groupId}`)
           const onlineSet = new Set()
           for (const m of (g.members || [])) {
             const u = m.user
@@ -308,7 +294,7 @@ async function loadGroupCounts(){
 
 async function loadUnread() {
   try {
-    const convos = await api(`/api/conversations`, { token: props.token })
+    const convos = await api(`/api/conversations`)
     const map = {}
     for (const c of convos) {
       if (c.type === 'group' && c.group) map[String(c._id)] = c.unreadCount || 0
@@ -336,7 +322,7 @@ async function searchUsers() {
   searchTimeout = setTimeout(async () => {
     searching.value = true
     try {
-      const results = await api(`/api/users/search?q=${encodeURIComponent(searchQuery.value)}`, { token: props.token })
+      const results = await api(`/api/users/search?q=${encodeURIComponent(searchQuery.value)}`)
       // Filtrer l'utilisateur connecté et les contacts existants
       const contactIds = contacts.value.map(c => c._id)
       searchResults.value = results.filter(u => u._id !== props.me._id && !contactIds.includes(u._id))
@@ -353,7 +339,6 @@ async function addContact(userId) {
   try {
     await api('/api/contacts', {
       method: 'POST',
-      token: props.token,
       body: { contact_id: userId }
     })
     await loadContacts()
@@ -456,7 +441,7 @@ watch(() => props.socket, (s) => {
 }, { immediate: true })
 
 async function logout(){
-  try { await api('/api/auth/logout', { method: 'POST', token: props.token }) } catch {}
+  try { await api('/api/auth/logout', { method: 'POST' }) } catch {}
   window.location.reload()
 }
 

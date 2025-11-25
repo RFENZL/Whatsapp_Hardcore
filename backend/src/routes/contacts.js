@@ -7,5 +7,7 @@ router.post('/', auth, ctrl.add);
 router.delete('/:contactId', auth, ctrl.remove);
 router.post('/:contactId/block', auth, ctrl.block);
 router.post('/:contactId/unblock', auth, ctrl.unblock);
+router.post('/:contactId/favorite', auth, ctrl.toggleFavorite);
+router.put('/:contactId/notes', auth, ctrl.updateNotes);
 
 module.exports = router;

@@ -15,6 +15,13 @@ const SessionSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  location: {
+    country: { type: String, default: '' },
+    countryCode: { type: String, default: '' },
+    region: { type: String, default: '' },
+    city: { type: String, default: '' },
+    timezone: { type: String, default: '' }
+  },
   loginTime: {
     type: Date,
     default: Date.now

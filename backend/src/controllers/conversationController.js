@@ -67,6 +67,8 @@ exports.list = async (req, res) => {
   // Calculer le nombre de non-lus pour chaque conversation
   const result = conversations.map(conv => {
     const unreadCount = conv.unreadCount.get(String(userId)) || 0;
+    const backgroundColor = conv.backgroundColor.get(String(userId)) || '#f9fafb';
+    const backgroundImage = conv.backgroundImage.get(String(userId)) || '';
     return {
       _id: conv._id,
       type: conv.type,
@@ -77,7 +79,9 @@ exports.list = async (req, res) => {
       unreadCount,
       isArchived: conv.archivedBy.some(id => String(id) === String(userId)),
       isMuted: conv.mutedBy.some(id => String(id) === String(userId)),
-      isPinned: conv.pinnedBy.some(id => String(id) === String(userId))
+      isPinned: conv.pinnedBy.some(id => String(id) === String(userId)),
+      backgroundColor,
+      backgroundImage
     };
   });
 
@@ -106,13 +110,17 @@ exports.getById = async (req, res) => {
   }
 
   const unreadCount = conversation.unreadCount.get(String(req.user._id)) || 0;
+  const backgroundColor = conversation.backgroundColor.get(String(req.user._id)) || '#f9fafb';
+  const backgroundImage = conversation.backgroundImage.get(String(req.user._id)) || '';
   
   res.json({
     ...conversation.toObject(),
     unreadCount,
     isArchived: conversation.archivedBy.some(id => String(id) === String(req.user._id)),
     isMuted: conversation.mutedBy.some(id => String(id) === String(req.user._id)),
-    isPinned: conversation.pinnedBy.some(id => String(id) === String(req.user._id))
+    isPinned: conversation.pinnedBy.some(id => String(id) === String(req.user._id)),
+    backgroundColor,
+    backgroundImage
   });
 };
 
@@ -236,6 +244,35 @@ exports.remove = async (req, res) => {
     // Pour les groupes, voir le contrôleur de groupe
     return res.status(400).json({ error: 'Use group leave endpoint for group conversations' });
   }
+};
+
+// Changer la couleur ou l'image de fond d'une conversation
+exports.setBackgroundColor = async (req, res) => {
+  const { color, image } = req.body;
+  
+  if (!color && !image) {
+    return res.status(400).json({ error: 'Color or image is required' });
+  }
+  
+  const conversation = await Conversation.findById(req.params.id);
+  
+  if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
+  
+  if (!conversation.participants.some(p => String(p._id || p) === String(req.user._id))) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  if (color) {
+    conversation.backgroundColor.set(String(req.user._id), color);
+    conversation.backgroundImage.set(String(req.user._id), '');
+  }
+  if (image) {
+    conversation.backgroundImage.set(String(req.user._id), image);
+    conversation.backgroundColor.set(String(req.user._id), '');
+  }
+  await conversation.save();
+
+  res.json({ message: 'Background updated', color, image });
 };
 
 // Marquer tous les messages comme lus dans une conversation

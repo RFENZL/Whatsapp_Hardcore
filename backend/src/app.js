@@ -4,8 +4,11 @@ const fs = require('fs');
 const morgan = require('morgan');
 const helmet = require('helmet');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
+const rateLimit = require('express-rate-limit');
 const createError = require('http-errors');
 const Sentry = require('@sentry/node');
+const logger = require('./utils/logger');
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
@@ -32,9 +35,30 @@ app.use(Sentry.Handlers.requestHandler());
 
 app.use(helmet());
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || true, credentials: true }));
+app.use(cookieParser());
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use(morgan('dev'));
+app.use(morgan('combined', { stream: logger.stream }));
+
+// Rate limiting pour les routes d'authentification
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 tentatives max
+  message: { error: 'Too many login attempts, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    logger.warn('Rate limit exceeded', { 
+      ip: req.ip, 
+      path: req.path,
+      method: req.method 
+    });
+    res.status(429).json({ error: 'Too many login attempts, please try again later' });
+  }
+});
+
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -86,6 +110,22 @@ app.use(Sentry.Handlers.errorHandler());
 
 app.use((err, req, res, next) => {
   const status = err.status || 500;
+  
+  // Log l'erreur avec Winston
+  if (status >= 500) {
+    logger.error(`${err.message}`, {
+      error: err.stack,
+      method: req.method,
+      path: req.path,
+      ip: req.ip,
+    });
+  } else {
+    logger.warn(`${status} - ${err.message}`, {
+      method: req.method,
+      path: req.path,
+    });
+  }
+  
   res.status(status).json({ error: { message: err.message || 'Error' } });
 });
 

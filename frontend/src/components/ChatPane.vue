@@ -33,6 +33,7 @@
             </button>
             <div v-if="showMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-50">
               <button @click="handleAddContact" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm">➕ Ajouter aux contacts</button>
+              <button @click="handleChangeBackground" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm">🎨 Changer le fond</button>
               <button @click="handleBlockContact" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-orange-600">🚫 Bloquer</button>
               <button @click="handleRemoveContact" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-red-600">🗑️ Supprimer</button>
             </div>
@@ -41,7 +42,14 @@
       </div>
     </div>
 
-    <div ref="listRef" class="flex-1 overflow-y-auto overflow-x-hidden bg-gray-50 p-4 space-y-2 pb-28">
+    <div ref="listRef" :style="{ 
+      backgroundColor: bgColor,
+      backgroundImage: bgImage ? `url(${bgImage})` : 'none',
+      backgroundSize: '100% auto',
+      backgroundRepeat: 'no-repeat',
+      backgroundPosition: 'center center',
+      backgroundAttachment: 'fixed'
+    }" class="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-2 pb-28">
       <MessageBubble 
         v-for="m in messages" 
         :key="m._id" 
@@ -52,14 +60,47 @@
       />
     </div>
 
-    <div v-show="typing" class="px-4 py-2 text-xs text-emerald-700 bg-emerald-50 border-t">en train d’écrire...</div>
+    <div v-show="typing" class="px-4 py-2 text-xs text-emerald-700 bg-emerald-50 border-t">en train d'écrire...</div>
 
-    <div class="sticky bottom-0 z-10 border-t bg-gray-50">
-      <Composer :key="currentPeerId" @send="send" @send-file="sendFile" @typing="typingPing" :disabled="!socketReady || !props.peer" />
+    <div class="sticky bottom-0 z-10 border-t bg-white">
+      <Composer :key="currentPeerId" @send="send" @send-file="sendFile" @typing="typingPing" :disabled="false" />
     </div>
 
     <GroupModal v-if="showGroupModal" :conversationId="props.peer._id" :token="props.token" :currentUser="props.me" @close="() => { showGroupModal = false }" @updated="onGroupUpdated" @left="onGroupLeft" />
     <AddMembersModal v-if="showAddMembersModal" :conversationId="props.peer._id" :token="props.token" @close="() => { showAddMembersModal = false }" @added="onMemberAdded" />
+    
+    <!-- Modal de sélection de couleur -->
+    <div v-if="showColorPicker" @click.self="showColorPicker = false" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg p-6 w-[500px] max-w-[90vw]">
+        <h3 class="text-lg font-semibold mb-4">Choisir une couleur de fond</h3>
+        
+        <!-- Images de fond -->
+        <div class="mb-6">
+          <h4 class="text-sm font-medium mb-2">Images:</h4>
+          <div class="grid grid-cols-3 gap-3">
+            <button v-for="img in availableImages" :key="img" @click="selectImage(img)" class="relative h-20 rounded-lg border-2 hover:border-emerald-500 transition-colors overflow-hidden">
+              <img :src="img" alt="Background" class="w-full h-full object-cover" />
+            </button>
+          </div>
+        </div>
+        
+        <!-- Couleurs -->
+        <div class="mb-6">
+          <h4 class="text-sm font-medium mb-2">Couleurs:</h4>
+          <div class="grid grid-cols-4 gap-3">
+            <button v-for="color in predefinedColors" :key="color.value" @click="selectColor(color.value)" :style="{ backgroundColor: color.value }" :title="color.name" class="w-full h-12 rounded-lg border-2 hover:border-emerald-500 transition-colors"></button>
+          </div>
+        </div>
+        
+        <!-- Couleur personnalisée -->
+        <div class="flex items-center gap-2 mb-4">
+          <label class="text-sm font-medium">Personnalisée:</label>
+          <input type="color" v-model="customColor" class="w-16 h-10 rounded cursor-pointer" />
+          <button @click="selectColor(customColor)" class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600">Appliquer</button>
+        </div>
+        <button @click="showColorPicker = false" class="w-full px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200">Annuler</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -86,6 +127,32 @@ const currentPeerId = ref(null)
 const loadedFor = ref(null)
 const socketReady = computed(() => !!(props.socket && props.socket.connected))
 const onlineCount = ref(0)
+const showColorPicker = ref(false)
+const customColor = ref('#ffffff')
+const bgColor = ref('#f9fafb')
+const bgImage = ref('')
+const conversationId = ref(null)
+const availableImages = ref([])
+
+const predefinedColors = [
+  { name: 'Gris clair', value: '#f9fafb' },
+  { name: 'Bleu clair', value: '#dbeafe' },
+  { name: 'Vert clair', value: '#dcfce7' },
+  { name: 'Jaune clair', value: '#fef3c7' },
+  { name: 'Rose clair', value: '#fce7f3' },
+  { name: 'Violet clair', value: '#ede9fe' },
+  { name: 'Orange clair', value: '#fed7aa' },
+  { name: 'Beige', value: '#fef5e7' }
+]
+
+// Charger les images disponibles
+function loadAvailableImages() {
+  // Liste statique des images disponibles
+  availableImages.value = [
+    '/images/kamehouse.svg',
+    '/images/kamehouse.jpg'
+  ]
+}
 
 async function loadGroupStatus() {
   try {
@@ -121,9 +188,40 @@ async function load(p=1){
   // If peer is a group, props.peer._id is the conversation id
   if (props.peer && props.peer.isGroup) {
     data = await api(`/api/messages/conversation/${props.peer._id}?page=${p}&limit=30`, { token: props.token })
+    conversationId.value = props.peer._id
   } else {
     data = await api(`/api/messages/${props.peer?._id}?page=${p}&limit=30`, { token: props.token })
   }
+  
+  // Charger les infos de conversation pour obtenir la couleur de fond
+  if (p === 1 && props.peer?._id) {
+    try {
+      let convId = conversationId.value
+      if (!props.peer.isGroup) {
+        const conv = await api('/api/conversations/direct', { method: 'POST', token: props.token, body: { participantId: props.peer._id } })
+        convId = conv && conv._id ? conv._id : null
+        conversationId.value = convId
+      }
+      
+      if (convId) {
+        const convData = await api(`/api/conversations/${convId}`, { token: props.token })
+        if (convData && convData.backgroundImage) {
+          bgImage.value = convData.backgroundImage
+          bgColor.value = '#f9fafb'
+        } else if (convData && convData.backgroundColor) {
+          bgColor.value = convData.backgroundColor
+          bgImage.value = ''
+        } else {
+          bgColor.value = '#f9fafb'
+          bgImage.value = ''
+        }
+      }
+    } catch (e) {
+      bgColor.value = '#f9fafb'
+      bgImage.value = ''
+    }
+  }
+  
   const raw = data && (data.items || data.messages) ? (data.items || data.messages) : []
   const isConversationShape = !!(data && data.messages)
   const itemsAscending = isConversationShape ? raw : raw.slice().reverse()
@@ -410,6 +508,52 @@ async function handleRemoveContact() {
   try {
     await apiRemoveContact(props.token, props.peer._id)
     alert('Contact supprimé')
+  } catch (e) {
+    alert('Erreur: ' + e.message)
+  }
+}
+
+function handleChangeBackground() {
+  showMenu.value = false
+  loadAvailableImages()
+  showColorPicker.value = true
+}
+
+async function selectColor(color) {
+  if (!conversationId.value) {
+    alert('Impossible de changer la couleur pour cette conversation')
+    return
+  }
+  
+  try {
+    await api(`/api/conversations/${conversationId.value}/background-color`, {
+      method: 'POST',
+      token: props.token,
+      body: { color }
+    })
+    bgColor.value = color
+    bgImage.value = ''
+    showColorPicker.value = false
+  } catch (e) {
+    alert('Erreur: ' + e.message)
+  }
+}
+
+async function selectImage(image) {
+  if (!conversationId.value) {
+    alert('Impossible de changer l\'image pour cette conversation')
+    return
+  }
+  
+  try {
+    await api(`/api/conversations/${conversationId.value}/background-color`, {
+      method: 'POST',
+      token: props.token,
+      body: { image }
+    })
+    bgImage.value = image
+    bgColor.value = '#f9fafb'
+    showColorPicker.value = false
   } catch (e) {
     alert('Erreur: ' + e.message)
   }
