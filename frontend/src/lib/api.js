@@ -65,7 +65,11 @@ export async function api(path, { method = "GET", token, body } = {}) {
   return isJSON ? data : { ok: true, data };
 }
 
-export async function uploadFile(token, file) {
+export async function uploadFile(fileOrToken, maybeFile) {
+  // Support pour uploadFile(file) ou uploadFile(token, file)
+  const file = maybeFile || fileOrToken;
+  const token = maybeFile ? fileOrToken : null;
+  
   const url = (API_BASE || "") + "/api/upload";
   const formData = new FormData();
   formData.append("file", file);
