@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-full bg-white overflow-hidden flex flex-col">
+  <div class="w-full h-full bg-white overflow-hidden flex flex-col relative z-10">
     <!-- Header -->
     <div class="px-4 py-3 border-b bg-white flex items-center justify-between">
       <h2 class="text-xl font-semibold">Paramètres</h2>
@@ -51,7 +51,7 @@
             <!-- Upload buttons -->
             <div class="flex-1 space-y-2">
               <!-- File input -->
-              <div>
+              <div class="flex gap-2">
                 <input 
                   type="file" 
                   ref="fileInput"
@@ -65,6 +65,13 @@
                   class="text-sm bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg disabled:opacity-50"
                 >
                   {{ uploadLoading ? 'Upload...' : 'Choisir une image' }}
+                </button>
+                <button 
+                  @click="showCamera = true"
+                  :disabled="uploadLoading"
+                  class="text-sm bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg disabled:opacity-50"
+                >
+                  📷 Caméra
                 </button>
               </div>
               
@@ -253,12 +260,20 @@
         </div>
       </div>
     </div>
+    
+    <!-- Camera Modal -->
+    <CameraModal 
+      v-if="showCamera" 
+      @close="showCamera = false"
+      @captured="handleCameraCapture"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { api, getSessions, deleteSession, getContacts, blockContact as apiBlockContact, unblockContact as apiUnblockContact, removeContact as apiRemoveContact, deleteAccount as apiDeleteAccount, uploadFile } from '../lib/api.js'
+import CameraModal from './CameraModal.vue'
 
 const props = defineProps({ me: Object, token: String })
 const emit = defineEmits(['close', 'accountDeleted', 'profileUpdated'])
@@ -282,6 +297,7 @@ const uploadError = ref('')
 const isDragging = ref(false)
 const fileInput = ref(null)
 const showPreview = ref(true)
+const showCamera = ref(false)
 
 // Computed property for avatar preview URL
 const avatarPreviewUrl = computed(() => {
@@ -332,6 +348,10 @@ async function handleFileSelect(event) {
   if (file) {
     await uploadAvatar(file)
   }
+}
+
+async function handleCameraCapture(file) {
+  await uploadAvatar(file)
 }
 
 async function handleDrop(event) {

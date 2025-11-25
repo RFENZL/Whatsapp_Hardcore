@@ -36,7 +36,7 @@
                 <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
               </svg>
             </button>
-            <div v-if="showMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-50">
+            <div v-if="showMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-10">
               <button @click="handleAddContact" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm">➕ Ajouter aux contacts</button>
               <button @click="handleChangeBackground" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm">🎨 Changer le fond</button>
               <button @click="handleBlockContact" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-orange-600">🚫 Bloquer</button>
@@ -66,7 +66,7 @@
 
     <div v-show="typing" class="px-4 py-2 text-xs text-emerald-700 bg-emerald-50 border-t">en train d'écrire...</div>
 
-    <div class="sticky bottom-0 z-10 border-t bg-white">
+    <div class="sticky bottom-0 border-t bg-white">
       <Composer :key="currentPeerId" @send="send" @send-file="sendFile" @typing="typingPing" :disabled="false" />
     </div>
 
@@ -74,7 +74,7 @@
     <AddMembersModal v-if="showAddMembersModal" :conversationId="props.peer._id" :token="props.token" @close="() => { showAddMembersModal = false }" @added="onMemberAdded" />
     
     <!-- Modal de sélection de couleur -->
-    <div v-if="showColorPicker" @click.self="showColorPicker = false" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div v-if="showColorPicker" @click.self="showColorPicker = false" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
       <div class="bg-white rounded-lg p-6 w-[500px] max-w-[90vw]">
         <h3 class="text-lg font-semibold mb-4">Choisir une couleur de fond</h3>
         
