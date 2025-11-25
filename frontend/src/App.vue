@@ -8,31 +8,23 @@
     </div>
   </div>
   <div v-else-if="!auth || !auth.user" class="w-full h-screen grid place-items-center bg-gradient-to-br from-emerald-50 to-teal-100">
-    <div class="flex flex-col md:flex-row items-center justify-center gap-8 px-4 w-full max-w-5xl">
-      <!-- Image de collaboration -->
-      <div class="hidden md:block flex-1 max-w-md">
-        <img src="/images/kamehouse.svg" alt="Collaboration" class="w-full h-auto drop-shadow-lg" />
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 mx-4">
+      <div class="text-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">WhatsApp-like Chat</h1>
+        <p class="text-gray-600 text-sm">Connectez-vous pour commencer à discuter</p>
       </div>
       
-      <!-- Formulaire de connexion -->
-      <div class="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
-        <div class="text-center mb-6">
-          <h1 class="text-3xl font-bold text-gray-800 mb-2">WhatsApp-like Chat</h1>
-          <p class="text-gray-600 text-sm">Connectez-vous pour commencer à discuter</p>
-        </div>
-        
-        <div class="flex mb-6">
-          <button :class="['flex-1 py-2 rounded-xl', tab==='login'?'bg-emerald-500 text-white':'bg-gray-100']" @click="tab='login'">Connexion</button>
-          <button :class="['flex-1 py-2 rounded-xl ml-2', tab==='register'?'bg-emerald-500 text-white':'bg-gray-100']" @click="tab='register'">Inscription</button>
-        </div>
-        <form @submit.prevent="submit" class="space-y-3">
-          <input class="w-full border rounded-xl px-3 py-2" placeholder="Email" v-model="email" />
-          <input v-if="tab==='register'" class="w-full border rounded-xl px-3 py-2" placeholder="Nom d'utilisateur" v-model="username" />
-          <input type="password" class="w-full border rounded-xl px-3 py-2" placeholder="Mot de passe" v-model="password" />
-          <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
-          <button type="submit" :disabled="loading" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl py-2 font-medium">{{ loading ? '...' : tab==='register' ? 'Créer le compte' : 'Se connecter' }}</button>
-        </form>
+      <div class="flex mb-6">
+        <button :class="['flex-1 py-2 rounded-xl', tab==='login'?'bg-emerald-500 text-white':'bg-gray-100']" @click="tab='login'">Connexion</button>
+        <button :class="['flex-1 py-2 rounded-xl ml-2', tab==='register'?'bg-emerald-500 text-white':'bg-gray-100']" @click="tab='register'">Inscription</button>
       </div>
+      <form @submit.prevent="submit" class="space-y-3">
+        <input class="w-full border rounded-xl px-3 py-2" placeholder="Email" v-model="email" />
+        <input v-if="tab==='register'" class="w-full border rounded-xl px-3 py-2" placeholder="Nom d'utilisateur" v-model="username" />
+        <input type="password" class="w-full border rounded-xl px-3 py-2" placeholder="Mot de passe" v-model="password" />
+        <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
+        <button type="submit" :disabled="loading" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl py-2 font-medium">{{ loading ? '...' : tab==='register' ? 'Créer le compte' : 'Se connecter' }}</button>
+      </form>
     </div>
   </div>
   <div v-else class="w-full h-screen overflow-hidden grid grid-cols-12">

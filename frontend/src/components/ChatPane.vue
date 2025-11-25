@@ -17,6 +17,11 @@
         </span>
 
         <template v-if="props.peer && props.peer.isGroup">
+          <button @click="handleChangeBackground" class="text-gray-600 hover:text-gray-900" title="Changer le fond">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+          </button>
           <button @click="showAddMembersModal = true" class="text-gray-600 hover:text-gray-900" title="Ajouter des membres">
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
               <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" />
@@ -45,10 +50,9 @@
     <div ref="listRef" :style="{ 
       backgroundColor: bgColor,
       backgroundImage: bgImage ? `url(${bgImage})` : 'none',
-      backgroundSize: '100% auto',
+      backgroundSize: 'cover',
       backgroundRepeat: 'no-repeat',
-      backgroundPosition: 'center center',
-      backgroundAttachment: 'fixed'
+      backgroundPosition: 'center center'
     }" class="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-2 pb-28">
       <MessageBubble 
         v-for="m in messages" 
@@ -146,12 +150,14 @@ const predefinedColors = [
 ]
 
 // Charger les images disponibles
-function loadAvailableImages() {
-  // Liste statique des images disponibles
-  availableImages.value = [
-    '/images/kamehouse.svg',
-    '/images/kamehouse.jpg'
-  ]
+async function loadAvailableImages() {
+  try {
+    const images = await api('/api/images')
+    availableImages.value = images || []
+  } catch (e) {
+    console.error('Erreur chargement images:', e)
+    availableImages.value = []
+  }
 }
 
 async function loadGroupStatus() {
@@ -515,8 +521,9 @@ async function handleRemoveContact() {
 
 function handleChangeBackground() {
   showMenu.value = false
-  loadAvailableImages()
-  showColorPicker.value = true
+  loadAvailableImages().then(() => {
+    showColorPicker.value = true
+  })
 }
 
 async function selectColor(color) {
