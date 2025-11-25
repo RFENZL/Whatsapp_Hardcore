@@ -4,6 +4,7 @@ const Group = require('../models/Group');
 const User = require('../models/User');
 const Media = require('../models/Media');
 const { getIO } = require('../socket/io');
+const logger = require('../utils/logger');
 
 exports.create = async (req, res) => {
   const {
@@ -97,8 +98,23 @@ exports.create = async (req, res) => {
     messageData.replyTo = replyTo;
   }
 
-  // Mentions
-  if (mentions && Array.isArray(mentions)) {
+  // Extract mentions from content (@username) if not already provided
+  if (!mentions || mentions.length === 0) {
+    const mentionRegex = /@(\w+)/g;
+    const mentionedUsernames = [];
+    let match;
+    while ((match = mentionRegex.exec(content || '')) !== null) {
+      mentionedUsernames.push(match[1]);
+    }
+    
+    // Find user IDs for mentioned usernames
+    if (mentionedUsernames.length > 0) {
+      const mentionedUsers = await User.find({ 
+        username: { $in: mentionedUsernames } 
+      }).select('_id');
+      messageData.mentions = mentionedUsers.map(u => u._id);
+    }
+  } else if (mentions && Array.isArray(mentions)) {
     messageData.mentions = mentions;
   }
 
@@ -127,12 +143,47 @@ exports.create = async (req, res) => {
   
   await conversation.save();
 
+  // Créer des notifications pour les mentions
+  if (mentions && Array.isArray(mentions) && mentions.length > 0) {
+    const { createNotification } = require('./notificationController');
+    
+    for (const mentionedUserId of mentions) {
+      if (String(mentionedUserId) !== String(req.user._id)) {
+        try {
+          await createNotification({
+            userId: mentionedUserId,
+            type: 'mention',
+            title: 'You were mentioned',
+            message: `${req.user.username} mentioned you in a message`,
+            data: {
+              messageId: msg._id,
+              conversationId: conversation._id,
+              groupId: group?._id,
+              fromUserId: req.user._id
+            },
+            actionUrl: `/conversations/${conversation._id}`,
+            priority: 'high'
+          });
+        } catch (err) {
+          logger.error('Failed to create mention notification', { 
+            error: err.message, 
+            mentionedUserId 
+          });
+        }
+      }
+    }
+  }
+
   // Émettre via Socket.IO
   const io = getIO();
   if (io) {
     const payload = {
       _id: String(msg._id),
-      sender: String(msg.sender),
+      sender: {
+        _id: String(req.user._id),
+        username: req.user.username,
+        avatar: req.user.avatar || null
+      },
       recipient: msg.recipient ? String(msg.recipient) : null,
       conversation: String(msg.conversation),
       group: msg.group ? String(msg.group) : null,
@@ -145,6 +196,7 @@ exports.create = async (req, res) => {
       media: msg.media ? String(msg.media) : null,
       replyTo: msg.replyTo ? String(msg.replyTo) : null,
       mentions: msg.mentions ? msg.mentions.map(String) : [],
+      reactions: [], // Nouveau message n'a pas encore de réactions
       createdAt: msg.createdAt,
       status: msg.status,
       edited: msg.edited,
@@ -155,6 +207,12 @@ exports.create = async (req, res) => {
     conversation.participants.forEach(participant => {
       const pid = participant && participant._id ? String(participant._id) : String(participant);
       io.to(pid).emit('message:new', payload);
+      logger.info('Message emitted via Socket.IO', {
+        messageId: payload._id,
+        to: pid,
+        sender: payload.sender._id,
+        conversationId: payload.conversation
+      });
     });
   }
 
@@ -177,7 +235,15 @@ exports.getWithUser = async (req, res) => {
       { sender: req.user._id, recipient: otherId },
       { sender: otherId, recipient: req.user._id }
     ]
-  }).sort({ createdAt: -1 }).skip(skip).limit(limit);
+  })
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .populate({
+      path: 'reactions',
+      select: 'emoji user createdAt',
+      populate: { path: 'user', select: 'username avatar' }
+    });
 
   res.json({ page, limit, items });
 };
@@ -231,11 +297,28 @@ exports.update = async (req, res) => {
 };
 
 exports.remove = async (req, res) => {
-  const msg = await Message.findById(req.params.id);
+  const msg = await Message.findById(req.params.id).populate('conversation');
   if (!msg) return res.status(404).json({ error: 'Not found' });
   if (String(msg.sender) !== String(req.user._id)) return res.status(403).json({ error: 'Forbidden' });
   msg.deleted = true;
   await msg.save();
+  
+  // Émettre via Socket.IO pour notifier la suppression
+  const io = getIO();
+  if (io && msg.conversation) {
+    const conversation = msg.conversation;
+    if (conversation.participants) {
+      conversation.participants.forEach(participant => {
+        const pid = participant && participant._id ? String(participant._id) : String(participant);
+        io.to(pid).emit('message:deleted', {
+          _id: String(msg._id),
+          conversation: String(msg.conversation._id),
+          deletedBy: String(req.user._id)
+        });
+      });
+    }
+  }
+  
   res.json({ message: 'ok' });
 };
 
@@ -293,7 +376,12 @@ exports.search = async (req, res) => {
       .skip(skip)
       .limit(parseInt(limit))
       .populate('sender', 'username avatar')
-      .populate('recipient', 'username avatar'),
+      .populate('recipient', 'username avatar')
+      .populate({
+        path: 'reactions',
+        select: 'emoji user createdAt',
+        populate: { path: 'user', select: 'username avatar' }
+      }),
     Message.countDocuments(query)
   ]);
 
@@ -330,7 +418,12 @@ exports.getByConversation = async (req, res) => {
     .limit(parseInt(limit))
     .populate('sender', 'username avatar')
     .populate('replyTo')
-    .populate('media');
+    .populate('media')
+    .populate({
+      path: 'reactions',
+      select: 'emoji user createdAt',
+      populate: { path: 'user', select: 'username avatar' }
+    });
 
   res.json({
     messages: messages.reverse(),
@@ -401,6 +494,35 @@ exports.forward = async (req, res) => {
     await targetConversation.save();
 
     forwardedMessages.push(newMessage);
+
+    // Créer des notifications de forward pour les participants
+    const { createNotification } = require('./notificationController');
+    targetConversation.participants.forEach(async (participant) => {
+      const pid = participant && participant._id ? String(participant._id) : String(participant);
+      if (pid !== String(req.user._id)) {
+        try {
+          await createNotification({
+            userId: pid,
+            type: 'message',
+            title: 'Message forwarded',
+            message: `${req.user.username} forwarded a message to you`,
+            data: {
+              messageId: newMessage._id,
+              conversationId: convId,
+              fromUserId: req.user._id,
+              metadata: { forwarded: true }
+            },
+            actionUrl: `/conversations/${convId}`,
+            priority: 'normal'
+          });
+        } catch (err) {
+          logger.error('Failed to create forward notification', { 
+            error: err.message, 
+            userId: pid 
+          });
+        }
+      }
+    });
 
     // Notifier via Socket.IO
     if (io) {
@@ -554,6 +676,11 @@ exports.getPinnedMessages = async (req, res) => {
   })
     .populate('sender', 'username avatar')
     .populate('pinnedBy', 'username')
+    .populate({
+      path: 'reactions',
+      select: 'emoji user createdAt',
+      populate: { path: 'user', select: 'username avatar' }
+    })
     .sort({ pinnedAt: -1 });
 
   res.json({ pinnedMessages });
@@ -634,7 +761,12 @@ exports.advancedSearch = async (req, res) => {
       .limit(parseInt(limit))
       .populate('sender', 'username avatar')
       .populate('recipient', 'username avatar')
-      .populate('media'),
+      .populate('media')
+      .populate({
+        path: 'reactions',
+        select: 'emoji user createdAt',
+        populate: { path: 'user', select: 'username avatar' }
+      }),
     Message.countDocuments(query)
   ]);
 

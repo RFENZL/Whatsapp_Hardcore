@@ -1,5 +1,6 @@
 <!-- frontend/src/App.vue (section v-else) -->
 <template>
+  <Toast />
   <!-- Écran de chargement pendant la vérification de la session -->
   <div v-if="isCheckingAuth" class="w-full h-screen grid place-items-center bg-gray-100">
     <div class="text-center">
@@ -156,6 +157,10 @@ const loading = ref(false)
 const error = ref("")
 const isCheckingAuth = ref(true) // État de vérification initiale
 const showForgotPassword = ref(false)
+const forgotEmail = ref('')
+const forgotLoading = ref(false)
+const forgotError = ref('')
+const forgotSuccess = ref(false)
 const passwordStrength = ref(null)
 const validationErrors = ref({})
 const showTimeoutWarning = ref(false)
@@ -290,11 +295,6 @@ async function logout(){
   sessionTimeout.stop()
   multiTabSync.broadcast('logout')
 }
-
-const forgotEmail = ref('')
-const forgotLoading = ref(false)
-const forgotSuccess = ref(false)
-const forgotError = ref('')
 
 async function sendResetEmail() {
   forgotError.value = ''; forgotSuccess.value = false; forgotLoading.value = true

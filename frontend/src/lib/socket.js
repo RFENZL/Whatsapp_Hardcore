@@ -23,5 +23,19 @@ export function createSocket(token) {
     reconnectionDelay: 500,
     transports: ['websocket', 'polling']
   })
+  
+  // Add connection event listeners
+  s.on('connect', () => {
+    console.log('[Socket] Connected', { socketId: s.id })
+  })
+  
+  s.on('disconnect', (reason) => {
+    console.log('[Socket] Disconnected', { reason })
+  })
+  
+  s.on('connect_error', (error) => {
+    console.error('[Socket] Connection error', { error: error.message })
+  })
+  
   return s
 }

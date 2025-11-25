@@ -19,6 +19,7 @@ const conversationRoutes = require('./routes/conversations');
 const groupRoutes = require('./routes/groups');
 const mediaRoutes = require('./routes/medias');
 const reactionRoutes = require('./routes/reactions');
+const notificationRoutes = require('./routes/notifications');
 const imagesRoutes = require('./routes/images');
 
 const app = express();
@@ -70,6 +71,7 @@ app.use('/api/conversations', conversationRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/medias', mediaRoutes);
 app.use('/api/reactions', reactionRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/images', imagesRoutes);
 
 // Servir les fichiers uploadés avec CORS

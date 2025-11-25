@@ -23,11 +23,14 @@
       <div class="mt-3">
         <input class="w-full rounded-xl border bg-gray-50 px-3 py-2 text-sm" placeholder="Rechercher un contact" v-model="query" />
       </div>
-      <div class="mt-2 flex items-center justify-between">
+      <div class="mt-2 flex items-center justify-between gap-2">
         <button @click="showCreateGroup = true" class="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg px-3 py-2 text-xs font-medium transition-colors">
           Créer un groupe
         </button>
-        <button @click="logout" class="text-xs text-gray-600 underline">Déconnexion</button>
+        <button @click="showArchived = !showArchived" class="text-xs text-gray-600 underline hover:text-gray-900">
+          {{ showArchived ? 'Actives' : 'Archivées' }}
+        </button>
+        <button @click="logout" class="text-xs text-gray-600 underline hover:text-gray-900">Déconnexion</button>
       </div>
     </div>
 

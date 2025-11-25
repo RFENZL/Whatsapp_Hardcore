@@ -61,13 +61,25 @@
         :m="m" 
         @edit="handleEditMessage"
         @delete="handleDeleteMessage"
+        @reply="handleReplyMessage"
+        @react="handleReaction"
       />
     </div>
 
     <div v-show="typing" class="px-4 py-2 text-xs text-emerald-700 bg-emerald-50 border-t">en train d'écrire...</div>
 
     <div class="sticky bottom-0 z-10 border-t bg-white">
-      <Composer :key="currentPeerId" @send="send" @send-file="sendFile" @typing="typingPing" :disabled="false" />
+      <Composer 
+        ref="composerRef"
+        :key="currentPeerId" 
+        @send="send" 
+        @send-file="sendFile" 
+        @typing="typingPing" 
+        @reply="handleReply"
+        :disabled="false"
+        :replyingTo="replyingTo"
+        :groupMembers="props.peer?.isGroup ? props.peer?.members : null"
+      />
     </div>
 
     <GroupModal v-if="showGroupModal" :conversationId="props.peer._id" :token="props.token" :currentUser="props.me" @close="() => { showGroupModal = false }" @updated="onGroupUpdated" @left="onGroupLeft" />
@@ -116,8 +128,10 @@ import AddMembersModal from "./AddMembersModal.vue"
 import Composer from "./Composer.vue"
 import MessageBubble from "./MessageBubble.vue"
 import { api, uploadFile, addContact, blockContact as apiBlockContact, removeContact as apiRemoveContact } from "../lib/api.js"
+import { useToast } from "../lib/toast.js"
 
 const props = defineProps({ me: Object, peer: Object, token: String, socket: Object })
+const toast = useToast()
 
 const messages = ref([])
 const page = ref(1)
@@ -137,6 +151,11 @@ const bgColor = ref('#f9fafb')
 const bgImage = ref('')
 const conversationId = ref(null)
 const availableImages = ref([])
+const replyingTo = ref(null)
+const composerRef = ref(null)
+const showMediaPreview = ref(false)
+const previewFile = ref(null)
+const previewUrl = ref(null)
 
 const predefinedColors = [
   { name: 'Gris clair', value: '#f9fafb' },
@@ -322,19 +341,54 @@ onUnmounted(() => {
 })
 
 function onMsg(message){
-  const pid = currentPeerId.value
-  if (!pid) return
-  const sId = String(message.sender)
-  const rId = message.recipient ? String(message.recipient) : null
+  console.log('[ChatPane] Received message:new event', { 
+    messageId: message._id, 
+    sender: message.sender,
+    conversation: message.conversation,
+    currentPeer: props.peer
+  })
+  
+  // Check if message belongs to current conversation
+  if (!props.peer) return
+  
+  // Handle both sender as object or string
+  const sId = message.sender?._id ? String(message.sender._id) : String(message.sender)
   const convId = message.conversation ? String(message.conversation) : null
-
-  const matches = sId === pid || rId === pid || convId === pid
+  
+  // For conversations, match by conversationId
+  // For direct messages without conversation, match by sender/recipient
+  let matches = false
+  
+  if (props.peer.conversationId && convId) {
+    // Match by conversation ID
+    matches = String(props.peer.conversationId) === convId
+  } else if (props.peer._id) {
+    // Match by peer ID (sender or recipient)
+    const peerId = String(props.peer._id)
+    const rId = message.recipient ? String(message.recipient) : null
+    matches = sId === peerId || rId === peerId
+  }
+  
+  console.log('[ChatPane] Message match check', { 
+    peerConvId: props.peer.conversationId,
+    messageConvId: convId,
+    peerId: props.peer._id,
+    senderId: sId,
+    matches 
+  })
+  
   if (matches) {
-    const stick = atBottom() || String(message.sender) === String(props.me._id)
-    // Ajouter le message s'il n'existe pas déjà
+    const stick = atBottom() || sId === String(props.me._id)
+    if (message.clientId) {
+      const idx = messages.value.findIndex(x => x.clientId && x.clientId === message.clientId)
+      if (idx !== -1) messages.value.splice(idx, 1)
+    }
     if (!messages.value.find(x => String(x._id) === String(message._id))) {
       messages.value = [...messages.value, message]
+      console.log('[ChatPane] Message added to list', { messageId: message._id })
       if (stick) scrollBottom()
+    } else {
+      console.log('[ChatPane] Message already exists in list', { messageId: message._id })
     }
   }
 }
@@ -347,7 +401,37 @@ function onMessageUpdated(data) {
   if (msg) {
     msg.content = data.content;
     msg.edited = data.edited;
-    msg.editedAt = data.editedAt;
+  }
+}
+
+function onReactionUpdated(data) {
+  // data: { messageId, userId, emoji, action }
+  const msg = messages.value.find(m => String(m._id) === String(data.messageId));
+  if (msg) {
+    if (!msg.reactions) msg.reactions = [];
+    
+    if (data.action === 'removed') {
+      // Retirer la réaction
+      const idx = msg.reactions.findIndex(r => 
+        String(r.user) === String(data.userId) && r.emoji === data.emoji
+      );
+      if (idx !== -1) {
+        msg.reactions.splice(idx, 1);
+      }
+    } else {
+      // Vérifier si la réaction existe déjà
+      const existingIdx = msg.reactions.findIndex(r => 
+        String(r.user) === String(data.userId)
+      );
+      
+      if (existingIdx !== -1) {
+        // Mettre à jour l'emoji
+        msg.reactions[existingIdx].emoji = data.emoji;
+      } else {
+        // Ajouter nouvelle réaction
+        msg.reactions.push({ emoji: data.emoji, user: data.userId });
+      }
+    }
   }
 }
 
@@ -357,10 +441,12 @@ watch(() => props.socket, (s) => {
   const hTyping = (e) => onTyping(e)
   const hTypingStop = (e) => onTypingStopped(e)
   const hMsgUpdated = (data) => onMessageUpdated(data)
+  const hReaction = (data) => onReactionUpdated(data)
   s.on('message:new', hMsg)
   s.on('message:updated', hMsgUpdated)
   s.on('typing', hTyping)
   s.on('typing-stopped', hTypingStop)
+  s.on('reaction:updated', hReaction)
   const hStatus = (payload) => {
     // payload: { userId, status }
     if (props.peer && props.peer.isGroup) loadGroupStatus().catch(()=>{})
@@ -371,6 +457,7 @@ watch(() => props.socket, (s) => {
     s.off('message:updated', hMsgUpdated)
     s.off('typing', hTyping)
     s.off('typing-stopped', hTypingStop)
+    s.off('reaction:updated', hReaction)
     s.off('user-status', hStatus)
   }
 }, { immediate: true })
@@ -405,15 +492,25 @@ async function send(content){
     createdAt: new Date().toISOString(),
     status: 'sent',
     edited: false,
-    deleted: false
+    deleted: false,
+    replyTo: replyingTo.value ? { content: replyingTo.value.content } : null
   }
   messages.value = [...messages.value, local]
   await nextTick()
   scrollBottom()
+  
+  // Clear reply
+  const replyToId = replyingTo.value?._id || null
+  replyingTo.value = null
+  
   try {
-    const body = props.peer.isGroup ? { conversation_id: props.peer._id, content, clientId } : { recipient_id: props.peer._id, content, clientId }
+    const body = props.peer.isGroup 
+      ? { conversation_id: props.peer._id, content, clientId, replyTo: replyToId } 
+      : { recipient_id: props.peer._id, content, clientId, replyTo: replyToId }
     await api(`/api/messages`, { method: 'POST', token: props.token, body })
-  } catch(e) {}
+  } catch(e) {
+    toast.error('Erreur lors de l\'envoi du message')
+  }
 }
 
 async function sendFile(file){
@@ -448,7 +545,17 @@ async function sendFile(file){
   scrollBottom();
 
   try {
+    // Simuler la progression d'upload
+    if (composerRef.value) {
+      composerRef.value.setUploadProgress(10);
+    }
+    
     const uploaded = await uploadFile(props.token, file);
+    
+    if (composerRef.value) {
+      composerRef.value.setUploadProgress(80);
+    }
+    
 
     // ✅ FIX : on met à jour le message local avec la vraie URL
     const idx = messages.value.findIndex(x => x.clientId === clientId);
@@ -476,13 +583,23 @@ async function sendFile(file){
       : { ...common, recipient_id: props.peer._id };
 
     await api(`/api/messages`, { method: 'POST', token: props.token, body });
+    
+    if (composerRef.value) {
+      composerRef.value.setUploadProgress(100);
+      setTimeout(() => {
+        if (composerRef.value) composerRef.value.setUploadProgress(0);
+      }, 500);
+    }
   } catch (e) {
     const idx = messages.value.findIndex(x => x.clientId === clientId);
     if (idx !== -1) {
       messages.value.splice(idx, 1);
     }
+    toast.error('Erreur lors de l\'upload du fichier');
+    if (composerRef.value) {
+      composerRef.value.setUploadProgress(0);
+    }
     console.error(e);
-    alert('Erreur: ' + e.message);
   }
 }
 
@@ -503,9 +620,9 @@ async function handleAddContact() {
   showMenu.value = false
   try {
     await addContact(props.token, props.peer._id)
-    alert('Contact ajouté avec succès')
+    toast.success('Contact ajouté avec succès')
   } catch (e) {
-    alert('Erreur: ' + e.message)
+    toast.error('Erreur: ' + e.message)
   }
 }
 
@@ -514,9 +631,9 @@ async function handleBlockContact() {
   if (!confirm(`Bloquer ${props.peer.username} ?`)) return
   try {
     await apiBlockContact(props.token, props.peer._id)
-    alert('Contact bloqué')
+    toast.success('Contact bloqué')
   } catch (e) {
-    alert('Erreur: ' + e.message)
+    toast.error('Erreur: ' + e.message)
   }
 }
 
@@ -525,9 +642,9 @@ async function handleRemoveContact() {
   if (!confirm(`Supprimer ${props.peer.username} de vos contacts ?`)) return
   try {
     await apiRemoveContact(props.token, props.peer._id)
-    alert('Contact supprimé')
+    toast.success('Contact supprimé')
   } catch (e) {
-    alert('Erreur: ' + e.message)
+    toast.error('Erreur: ' + e.message)
   }
 }
 
@@ -540,7 +657,7 @@ function handleChangeBackground() {
 
 async function selectColor(color) {
   if (!conversationId.value) {
-    alert('Impossible de changer la couleur pour cette conversation')
+    toast.error('Impossible de changer la couleur pour cette conversation')
     return
   }
   
@@ -553,14 +670,15 @@ async function selectColor(color) {
     bgColor.value = color
     bgImage.value = ''
     showColorPicker.value = false
+    toast.success('Couleur de fond modifiée')
   } catch (e) {
-    alert('Erreur: ' + e.message)
+    toast.error('Erreur: ' + e.message)
   }
 }
 
 async function selectImage(image) {
   if (!conversationId.value) {
-    alert('Impossible de changer l\'image pour cette conversation')
+    toast.error('Impossible de changer l\'image pour cette conversation')
     return
   }
   
@@ -573,8 +691,9 @@ async function selectImage(image) {
     bgImage.value = image
     bgColor.value = '#f9fafb'
     showColorPicker.value = false
+    toast.success('Image de fond modifiée')
   } catch (e) {
-    alert('Erreur: ' + e.message)
+    toast.error('Erreur: ' + e.message)
   }
 }
 
@@ -592,8 +711,9 @@ async function handleEditMessage({ messageId, content }) {
       msg.content = content;
       msg.edited = true;
     }
+    toast.success('Message modifié');
   } catch (e) {
-    alert('Erreur lors de la modification: ' + e.message);
+    toast.error('Erreur lors de la modification: ' + e.message);
   }
 }
 
@@ -611,8 +731,48 @@ async function handleDeleteMessage(messageId) {
     if (msg) {
       msg.deleted = true;
     }
+    toast.success('Message supprimé');
   } catch (e) {
-    alert('Erreur lors de la suppression: ' + e.message);
+    toast.error('Erreur lors de la suppression: ' + e.message);
+  }
+}
+
+function handleReplyMessage(message) {
+  replyingTo.value = message;
+}
+
+function handleReply(value) {
+  replyingTo.value = value;
+}
+
+async function handleReaction({ messageId, emoji }) {
+  try {
+    await api(`/api/reactions/messages/${messageId}`, {
+      method: 'POST',
+      token: props.token,
+      body: { emoji }
+    });
+    
+    // Update local message reactions
+    const msg = messages.value.find(m => String(m._id) === String(messageId));
+    if (msg) {
+      if (!msg.reactions) msg.reactions = [];
+      
+      // Check if user already reacted with this emoji
+      const existingIdx = msg.reactions.findIndex(r => 
+        String(r.user) === String(props.me._id) && r.emoji === emoji
+      );
+      
+      if (existingIdx !== -1) {
+        // Remove reaction
+        msg.reactions.splice(existingIdx, 1);
+      } else {
+        // Add reaction
+        msg.reactions.push({ emoji, user: props.me._id });
+      }
+    }
+  } catch (e) {
+    toast.error('Erreur lors de la réaction');
   }
 }
 

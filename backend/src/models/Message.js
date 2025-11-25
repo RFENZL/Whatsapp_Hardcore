@@ -79,6 +79,17 @@ MessageSchema.index({ group: 1, createdAt: -1 });
 // Index texte pour la recherche
 MessageSchema.index({ content: 'text' });
 
+// Virtual populate pour les réactions
+MessageSchema.virtual('reactions', {
+  ref: 'Reaction',
+  localField: '_id',
+  foreignField: 'message'
+});
+
+// S'assurer que les virtuals sont inclus dans JSON
+MessageSchema.set('toJSON', { virtuals: true });
+MessageSchema.set('toObject', { virtuals: true });
+
 // Middleware pour mettre à jour les timestamps de statut
 MessageSchema.pre('save', function(next) {
   if (this.isModified('status')) {
