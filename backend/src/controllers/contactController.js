@@ -7,11 +7,13 @@ const Message = require('../models/Message');
 exports.list = async (req, res) => {
   const items = await Contact.find({ owner: req.user._id })
     .populate('contact', 'username avatar status lastSeen')
-    .sort({ 'contact.username': 1 });
+    .sort({ isFavorite: -1, 'contact.username': 1 }); // Favoris en premier
 
   res.json(items.map(c => ({
     _id: c._id,
     blocked: c.blocked,
+    isFavorite: c.isFavorite,
+    notes: c.notes,
     contact: {
       _id: c.contact._id,
       username: c.contact.username,
@@ -127,4 +129,49 @@ exports.unblock = async (req, res) => {
   ).populate('contact', 'username avatar status lastSeen');
   if (!contact) return res.status(404).json({ error: 'contact not found' });
   res.json(contact);
+};
+
+// POST /api/contacts/:contactId/favorite (toggle)
+exports.toggleFavorite = async (req, res) => {
+  const { contactId } = req.params;
+  const contact = await Contact.findOne({ owner: req.user._id, contact: contactId });
+  if (!contact) return res.status(404).json({ error: 'contact not found' });
+  
+  contact.isFavorite = !contact.isFavorite;
+  await contact.save();
+  
+  await contact.populate('contact', 'username avatar status lastSeen');
+  res.json({
+    _id: contact._id,
+    blocked: contact.blocked,
+    isFavorite: contact.isFavorite,
+    notes: contact.notes,
+    contact: contact.contact
+  });
+};
+
+// PUT /api/contacts/:contactId/notes
+exports.updateNotes = async (req, res) => {
+  const { contactId } = req.params;
+  const { notes } = req.body;
+  
+  if (notes && notes.length > 1000) {
+    return res.status(400).json({ error: 'Notes trop longues (max 1000 caractères)' });
+  }
+  
+  const contact = await Contact.findOneAndUpdate(
+    { owner: req.user._id, contact: contactId },
+    { notes: notes || '' },
+    { new: true }
+  ).populate('contact', 'username avatar status lastSeen');
+  
+  if (!contact) return res.status(404).json({ error: 'contact not found' });
+  
+  res.json({
+    _id: contact._id,
+    blocked: contact.blocked,
+    isFavorite: contact.isFavorite,
+    notes: contact.notes,
+    contact: contact.contact
+  });
 };

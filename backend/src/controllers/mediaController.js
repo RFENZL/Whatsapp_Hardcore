@@ -2,6 +2,7 @@ const Media = require('../models/Media');
 const path = require('path');
 const fs = require('fs').promises;
 const crypto = require('crypto');
+const logger = require('../utils/logger');
 
 // Types de fichiers autorisés
 const ALLOWED_TYPES = {
@@ -112,7 +113,7 @@ exports.upload = async (req, res) => {
 
     res.status(201).json(media);
   } catch (error) {
-    console.error('Upload error:', error);
+    logger.error('Upload error', { error: error.message, stack: error.stack, userId: req.user?._id });
     res.status(500).json({ error: 'Upload failed' });
   }
 };

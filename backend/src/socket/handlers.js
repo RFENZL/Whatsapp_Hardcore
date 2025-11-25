@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Message = require('../models/Message');
+const logger = require('../utils/logger');
 
 const onlineUsers = new Map();
 
@@ -19,12 +20,14 @@ module.exports = function initSocket(io) {
       socket.user = user;
       next();
     } catch (e) {
+      logger.warn('Socket auth failed', { error: e.message });
       next(new Error('Unauthorized'));
     }
   });
 
   io.on('connection', async (socket) => {
     const user = socket.user;
+    logger.info(`User connected: ${user.username}`, { userId: user._id.toString() });
 
     socket.join(user._id.toString());
 
@@ -67,6 +70,7 @@ module.exports = function initSocket(io) {
 
         cb && cb({ ok: true, id: msg._id });
       } catch (err) {
+        logger.error('Socket send-message error', { error: err.message, userId: user._id.toString() });
         cb && cb({ ok: false, error: err.message });
       }
     });
@@ -81,6 +85,7 @@ module.exports = function initSocket(io) {
         io.to(String(msg.sender)).emit('message:read', { messageId: String(msg._id) });
         cb && cb({ ok: true });
       } catch (e) {
+        logger.warn('Socket message-read error', { error: e.message, userId: user._id.toString() });
         cb && cb({ ok: false, error: e.message });
       }
     });
@@ -106,6 +111,7 @@ module.exports = function initSocket(io) {
           await user.save();
           broadcastUserStatus(io, user, 'offline');
           io.emit('user-offline', { userId: user._id.toString(), lastSeen: user.lastSeen });
+          logger.info(`User disconnected: ${user.username}`, { userId: user._id.toString() });
         }
       }
     });

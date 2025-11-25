@@ -5,6 +5,7 @@ const ctrl = require('../controllers/userController');
 router.get('/search', auth, ctrl.search);
 router.get('/sessions', auth, ctrl.getSessions);
 router.delete('/sessions/:sessionId', auth, ctrl.deleteSession);
+router.post('/sessions/delete-all', auth, ctrl.deleteAllSessions);
 router.get('/:id', auth, ctrl.getById);
 router.get('/', auth, ctrl.list);
 router.put('/profile', auth, ctrl.updateProfile);

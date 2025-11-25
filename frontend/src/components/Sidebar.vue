@@ -155,7 +155,6 @@ const contacts = ref([])
 const conversations = ref([])
 const convToGroup = ref({})
 const groupOnline = ref({})
-const memberToConvs = ref({})
 const query = ref("")
 const typingMap = ref({})
 const unreadMap = ref({})
@@ -212,26 +211,13 @@ async function loadConversations() {
 
     conversations.value = normalized
     const map = {}
-    const memberMap = {}
     for (const c of normalized) {
       map[c.otherUser._id] = c.unread || 0
       // store mapping conversationId -> groupId when available
       if (c.raw && c.raw.type === 'group' && c.raw.group) {
         convToGroup.value[String(c._id)] = String(c.raw.group._id || c.raw.group)
       }
-      // index participants -> conversation for quick updates
-      if (c.raw && c.raw.participants && c.raw.participants.length) {
-        for (const p of c.raw.participants) {
-          const pid = String(p._id || p)
-          if (!memberMap[pid]) memberMap[pid] = new Set()
-          memberMap[pid].add(String(c._id))
-        }
-      }
     }
-    // convert sets to arrays for storage
-    const mtc = {}
-    for (const k of Object.keys(memberMap)) mtc[k] = Array.from(memberMap[k])
-    memberToConvs.value = mtc
     unreadMap.value = map
     // load online counts for groups
     loadGroupCounts().catch(()=>{})
