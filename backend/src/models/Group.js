@@ -52,6 +52,85 @@ const GroupSchema = new mongoose.Schema({
       default: 'member'
     }
   }],
+  
+  // Historique des membres (ajouts et suppressions)
+  memberHistory: [{
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    action: {
+      type: String,
+      enum: ['joined', 'left', 'removed', 'banned'],
+      required: true
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now
+    },
+    by: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    }
+  }],
+  
+  // Membres bannis
+  bannedMembers: [{
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    bannedAt: {
+      type: Date,
+      default: Date.now
+    },
+    bannedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    reason: {
+      type: String,
+      default: ''
+    }
+  }],
+  
+  // Lien d'invitation
+  inviteLink: {
+    code: {
+      type: String,
+      unique: true,
+      sparse: true
+    },
+    enabled: {
+      type: Boolean,
+      default: false
+    },
+    createdAt: {
+      type: Date,
+      default: null
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    expiresAt: {
+      type: Date,
+      default: null
+    },
+    maxUses: {
+      type: Number,
+      default: null
+    },
+    uses: {
+      type: Number,
+      default: 0
+    }
+  },
 
   // Paramètres du groupe
   settings: {

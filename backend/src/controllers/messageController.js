@@ -103,6 +103,14 @@ exports.create = async (req, res) => {
 
   const msg = await Message.create(messageData);
 
+  // Mettre à jour le statut à 'sent' après création
+  msg.status = 'sent';
+  if (!msg.statusTimestamps) {
+    msg.statusTimestamps = {};
+  }
+  msg.statusTimestamps.sent = new Date();
+  await msg.save();
+
   // Mettre à jour la conversation
   conversation.lastMessage = msg._id;
   conversation.lastMessageAt = msg.createdAt;
@@ -253,7 +261,8 @@ exports.search = async (req, res) => {
       { recipient: req.user._id }
     ],
     deleted: false,
-    content: { $regex: q.trim(), $options: 'i' }
+    // Utiliser l'index texte MongoDB pour une recherche performante
+    $text: { $search: q.trim() }
   };
 
   // Filtre par expéditeur
@@ -275,8 +284,11 @@ exports.search = async (req, res) => {
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
   const [messages, total] = await Promise.all([
-    Message.find(query)
-      .sort({ createdAt: -1 })
+    Message.find(query, {
+      // Ajouter le score de pertinence de la recherche texte
+      score: { $meta: 'textScore' }
+    })
+      .sort({ score: { $meta: 'textScore' }, createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
       .populate('sender', 'username avatar')
@@ -439,4 +451,197 @@ exports.markDelivered = async (req, res) => {
   }
 
   res.json({ message: 'Messages marked as delivered' });
+};
+
+// Épingler un message dans un groupe
+exports.pinMessage = async (req, res) => {
+  const message = await Message.findById(req.params.id);
+
+  if (!message) return res.status(404).json({ error: 'Message not found' });
+
+  // Vérifier que c'est un message de groupe
+  if (!message.group) {
+    return res.status(400).json({ error: 'Only group messages can be pinned' });
+  }
+
+  const group = await Group.findById(message.group);
+  if (!group) return res.status(404).json({ error: 'Group not found' });
+
+  // Seuls les admins peuvent épingler des messages
+  if (!group.isAdmin(req.user._id)) {
+    return res.status(403).json({ error: 'Only admins can pin messages' });
+  }
+
+  message.isPinned = true;
+  message.pinnedAt = new Date();
+  message.pinnedBy = req.user._id;
+  await message.save();
+
+  // Notifier via Socket.IO
+  const io = getIO();
+  if (io) {
+    const conversation = await Conversation.findById(message.conversation);
+    if (conversation) {
+      conversation.participants.forEach(participant => {
+        io.to(String(participant)).emit('message:pinned', {
+          messageId: String(message._id),
+          groupId: String(message.group)
+        });
+      });
+    }
+  }
+
+  res.json({ message: 'Message pinned successfully' });
+};
+
+// Désépingler un message
+exports.unpinMessage = async (req, res) => {
+  const message = await Message.findById(req.params.id);
+
+  if (!message) return res.status(404).json({ error: 'Message not found' });
+
+  if (!message.group) {
+    return res.status(400).json({ error: 'Only group messages can be unpinned' });
+  }
+
+  const group = await Group.findById(message.group);
+  if (!group) return res.status(404).json({ error: 'Group not found' });
+
+  // Seuls les admins peuvent désépingler des messages
+  if (!group.isAdmin(req.user._id)) {
+    return res.status(403).json({ error: 'Only admins can unpin messages' });
+  }
+
+  message.isPinned = false;
+  message.pinnedAt = null;
+  message.pinnedBy = null;
+  await message.save();
+
+  // Notifier via Socket.IO
+  const io = getIO();
+  if (io) {
+    const conversation = await Conversation.findById(message.conversation);
+    if (conversation) {
+      conversation.participants.forEach(participant => {
+        io.to(String(participant)).emit('message:unpinned', {
+          messageId: String(message._id),
+          groupId: String(message.group)
+        });
+      });
+    }
+  }
+
+  res.json({ message: 'Message unpinned successfully' });
+};
+
+// Obtenir les messages épinglés d'un groupe
+exports.getPinnedMessages = async (req, res) => {
+  const { conversationId } = req.params;
+
+  const conversation = await Conversation.findById(conversationId);
+  if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
+
+  // Vérifier l'accès
+  if (!conversation.participants.some(p => String(p) === String(req.user._id))) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  const pinnedMessages = await Message.find({
+    conversation: conversationId,
+    isPinned: true,
+    deleted: false
+  })
+    .populate('sender', 'username avatar')
+    .populate('pinnedBy', 'username')
+    .sort({ pinnedAt: -1 });
+
+  res.json({ pinnedMessages });
+};
+
+// Recherche avancée de messages
+exports.advancedSearch = async (req, res) => {
+  const { 
+    q, 
+    conversationId, 
+    type, 
+    startDate, 
+    endDate,
+    senderId,
+    page = 1, 
+    limit = 20 
+  } = req.query;
+
+  const query = {
+    $or: [
+      { sender: req.user._id },
+      { recipient: req.user._id }
+    ],
+    deleted: false
+  };
+
+  // Recherche textuelle
+  if (q && q.trim().length > 0) {
+    query.$text = { $search: q.trim() };
+  }
+
+  // Filtre par conversation
+  if (conversationId) {
+    query.conversation = conversationId;
+    delete query.$or;
+    
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation || !conversation.participants.some(p => String(p) === String(req.user._id))) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+  }
+
+  // Filtre par type de message
+  if (type) {
+    query.type = type;
+  }
+
+  // Filtre par date
+  if (startDate || endDate) {
+    query.createdAt = {};
+    if (startDate) {
+      query.createdAt.$gte = new Date(startDate);
+    }
+    if (endDate) {
+      query.createdAt.$lte = new Date(endDate);
+    }
+  }
+
+  // Filtre par expéditeur
+  if (senderId) {
+    query.sender = senderId;
+  }
+
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  
+  const projection = q && q.trim().length > 0 ? {
+    score: { $meta: 'textScore' }
+  } : {};
+
+  const sortCriteria = q && q.trim().length > 0 
+    ? { score: { $meta: 'textScore' }, createdAt: -1 }
+    : { createdAt: -1 };
+
+  const [messages, total] = await Promise.all([
+    Message.find(query, projection)
+      .sort(sortCriteria)
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate('sender', 'username avatar')
+      .populate('recipient', 'username avatar')
+      .populate('media'),
+    Message.countDocuments(query)
+  ]);
+
+  res.json({
+    messages,
+    total,
+    page: parseInt(page),
+    limit: parseInt(limit),
+    totalPages: Math.ceil(total / parseInt(limit))
+  });
 };

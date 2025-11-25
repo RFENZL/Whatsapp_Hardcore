@@ -6,6 +6,7 @@ const { Server } = require('socket.io');
 const app = require('./app');
 const initSocket = require('./socket/handlers');
 const { setIO } = require('./socket/io');
+const { startCleanupJob } = require('./jobs/cleanupExpiredMessages');
 const logger = require('./utils/logger');
 
 const PORT = process.env.PORT || 4000;
@@ -22,6 +23,9 @@ async function start() {
     });
     initSocket(io);
     setIO(io);
+    
+    // Démarrer le job de nettoyage des messages expirés (toutes les heures)
+    startCleanupJob(60 * 60 * 1000);
     
     server.listen(PORT, () => {
       logger.info(`Server started on http://localhost:${PORT}`, { port: PORT, env: process.env.NODE_ENV || 'development' });

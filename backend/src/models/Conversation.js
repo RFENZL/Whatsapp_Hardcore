@@ -66,6 +66,12 @@ const ConversationSchema = new mongoose.Schema({
     ref: 'User'
   }],
 
+  // Conversation épinglée par utilisateur
+  pinnedBy: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+
   // Couleur de fond personnalisée par utilisateur
   backgroundColor: {
     type: Map,

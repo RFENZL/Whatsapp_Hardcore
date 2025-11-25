@@ -8,6 +8,12 @@ router.post('/', auth, ctrl.create);
 // Recherche de messages
 router.get('/search', auth, ctrl.search);
 
+// Recherche avancée de messages
+router.get('/search/advanced', auth, ctrl.advancedSearch);
+
+// Obtenir les messages épinglés d'une conversation
+router.get('/conversation/:conversationId/pinned', auth, ctrl.getPinnedMessages);
+
 // Liste des conversations (deprecated - utiliser /api/conversations)
 router.get('/conversations', auth, ctrl.conversations);
 
@@ -31,5 +37,11 @@ router.delete('/:id', auth, ctrl.remove);
 
 // Marquer comme lu
 router.post('/:id/read', auth, ctrl.markRead);
+
+// Épingler un message
+router.post('/:id/pin', auth, ctrl.pinMessage);
+
+// Désépingler un message
+router.delete('/:id/pin', auth, ctrl.unpinMessage);
 
 module.exports = router;
