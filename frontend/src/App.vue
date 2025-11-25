@@ -1,5 +1,6 @@
 <!-- frontend/src/App.vue (section v-else) -->
 <template>
+  <Toast ref="toastRef" />
   <!-- Écran de chargement pendant la vérification de la session -->
   <div v-if="isCheckingAuth" class="w-full h-screen grid place-items-center bg-gray-100">
     <div class="text-center">
@@ -58,9 +59,11 @@ import { ref, watch } from "vue"
 import Sidebar from "./components/Sidebar.vue"
 import ChatPane from "./components/ChatPane.vue"
 import Settings from "./components/Settings.vue"
+import Toast from "./components/Toast.vue"
 import { useCookieAuth } from "./lib/storage.js"
 import { api } from "./lib/api.js"
 import { createSocket } from "./lib/socket.js"
+import { setToastInstance } from "./lib/toast.js"
 
 const { auth, clearAuth } = useCookieAuth({ user: null })
 const peer = ref(null)
@@ -73,6 +76,7 @@ const password = ref("")
 const loading = ref(false)
 const error = ref("")
 const isCheckingAuth = ref(true) // État de vérification initiale
+const toastRef = ref(null)
 
 function setPeer(u){ peer.value = u }
 
@@ -114,6 +118,11 @@ function onProfileUpdated(updatedUser){
 
 // Vérifier si l'utilisateur est déjà connecté au démarrage
 onMounted(async () => {
+  // Initialize toast instance
+  if (toastRef.value) {
+    setToastInstance(toastRef.value);
+  }
+  
   try {
     // Essayer de récupérer l'utilisateur avec le token du cookie
     const data = await api("/api/auth/me", { method: "GET" })

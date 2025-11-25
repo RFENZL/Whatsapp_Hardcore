@@ -7,9 +7,23 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: true, minlength: 6, select: false },
   avatar: { type: String, default: '' },
   bio: { type: String, default: '', maxlength: 500 },
-  status: { type: String, enum: ['online', 'offline'], default: 'offline' },
+  status: { 
+    type: String, 
+    enum: ['online', 'offline', 'away', 'busy', 'dnd'], 
+    default: 'offline' 
+  },
+  customStatus: {
+    message: { type: String, default: '', maxlength: 100 },
+    emoji: { type: String, default: '' },
+    expiresAt: { type: Date, default: null }
+  },
   createdAt: { type: Date, default: Date.now },
   lastSeen: { type: Date, default: null },
+  lastSeenPerConversation: {
+    type: Map,
+    of: Date,
+    default: {}
+  },
   refreshToken: { type: String, select: false },
   isEmailVerified: { type: Boolean, default: false },
   emailVerificationToken: { type: String, select: false },

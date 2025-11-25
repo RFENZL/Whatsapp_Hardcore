@@ -8,6 +8,12 @@
         <div>🗑️ Message supprimé</div>
       </template>
       <template v-else>
+        <!-- Reply preview -->
+        <div v-if="m.replyTo" class="mb-2 p-2 bg-black bg-opacity-5 rounded border-l-2 border-emerald-500 text-xs">
+          <div class="font-medium text-emerald-700">En réponse à:</div>
+          <div class="text-gray-600 truncate">{{ m.replyTo.content }}</div>
+        </div>
+
         <!-- Container with flex to separate content and menu button -->
         <div class="flex items-start gap-2">
           <div class="flex-1 min-w-0">
@@ -71,8 +77,8 @@
         </div>
           </div>
 
-          <!-- Menu button (visible on hover for own messages) -->
-          <div v-if="isMe && !m.deleted && !editing" class="relative flex-shrink-0">
+          <!-- Menu button (visible on hover) -->
+          <div v-if="!m.deleted && !editing" class="relative flex-shrink-0">
             <button 
               @click.stop="toggleMenu"
               class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-black/5 rounded"
@@ -84,19 +90,77 @@
             </button>
             
             <!-- Context menu -->
-            <div v-if="showMenu" class="absolute right-0 top-8 bg-white rounded-lg shadow-lg border z-50 min-w-[120px]">
+            <div v-if="showMenu" class="absolute right-0 top-8 bg-white rounded-lg shadow-lg border z-50 min-w-[140px]">
+              <button 
+                @click="handleReply"
+                class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"
+              >
+                💬 Répondre
+              </button>
               <button 
                 v-if="kind === 'text'"
+                @click="handleCopy"
+                class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"
+              >
+                📋 Copier
+              </button>
+              <button 
+                v-if="isMe && kind === 'text'"
                 @click="startEdit"
                 class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"
               >
-                Modifier
+                ✏️ Modifier
               </button>
               <button 
+                v-if="isMe"
                 @click="$emit('delete', m._id)"
                 class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-red-600"
               >
-                Supprimer
+                🗑️ Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reactions -->
+        <div v-if="!m.deleted" class="flex items-center gap-2 mt-2">
+          <!-- Show existing reactions -->
+          <div v-if="m.reactions && m.reactions.length > 0" class="flex gap-1">
+            <button
+              v-for="(reaction, idx) in groupedReactions"
+              :key="idx"
+              @click="handleReactionClick(reaction.emoji)"
+              :class="[
+                'text-xs px-2 py-0.5 rounded-full border transition-all',
+                reaction.hasUserReacted ? 'bg-emerald-100 border-emerald-300' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+              ]"
+            >
+              {{ reaction.emoji }} {{ reaction.count }}
+            </button>
+          </div>
+          
+          <!-- Add reaction button -->
+          <div class="relative">
+            <button
+              @click.stop="toggleReactionPicker"
+              class="text-xs opacity-0 group-hover:opacity-100 transition-opacity px-2 py-0.5 rounded-full hover:bg-gray-100"
+              title="Réagir"
+            >
+              😊
+            </button>
+            
+            <!-- Quick reactions picker -->
+            <div
+              v-if="showReactionPicker"
+              class="absolute bottom-full mb-1 left-0 bg-white rounded-lg shadow-lg border p-2 z-50 flex gap-1"
+            >
+              <button
+                v-for="emoji in quickReactions"
+                :key="emoji"
+                @click="addReaction(emoji)"
+                class="text-xl hover:scale-125 transition-transform"
+              >
+                {{ emoji }}
               </button>
             </div>
           </div>
@@ -112,18 +176,23 @@
 </template>
 
 <script setup>
-import { computed, ref, nextTick } from "vue";
+import { computed, ref, nextTick, onMounted, onUnmounted } from "vue";
+import { useToast } from "../lib/toast.js";
 
 const props = defineProps({ me: Object, m: Object });
-const emit = defineEmits(['edit', 'delete']);
+const emit = defineEmits(['edit', 'delete', 'reply', 'react']);
 
 const showMenu = ref(false);
 const editing = ref(false);
 const editContent = ref('');
 const editTextarea = ref(null);
+const showReactionPicker = ref(false);
+const toast = useToast();
 
 // Use the same logic as api.js to get API_BASE
 const API_BASE = import.meta?.env?.VITE_API_BASE || "";
+
+const quickReactions = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
 const isSystem = computed(() => (props.m && (props.m.type === 'system' || props.m.type === 'notification')));
 const isMe = computed(() => String(props.m.sender) === String(props.me._id));
@@ -141,6 +210,31 @@ const kind = computed(() => {
   const t = props.m.type || "text";
   if (t === "image" || t === "video" || t === "file" || t === 'system') return t;
   return "text";
+});
+
+const groupedReactions = computed(() => {
+  if (!props.m.reactions || props.m.reactions.length === 0) return [];
+  
+  const groups = {};
+  props.m.reactions.forEach(reaction => {
+    const emoji = reaction.emoji || reaction;
+    if (!groups[emoji]) {
+      groups[emoji] = {
+        emoji,
+        count: 0,
+        users: []
+      };
+    }
+    groups[emoji].count++;
+    if (reaction.user) {
+      groups[emoji].users.push(reaction.user);
+    }
+  });
+  
+  return Object.values(groups).map(group => ({
+    ...group,
+    hasUserReacted: group.users.some(u => String(u) === String(props.me._id))
+  }));
 });
 
 const fullMediaUrl = computed(() => {
@@ -173,6 +267,10 @@ const toggleMenu = () => {
   showMenu.value = !showMenu.value;
 };
 
+const toggleReactionPicker = () => {
+  showReactionPicker.value = !showReactionPicker.value;
+};
+
 const startEdit = async () => {
   showMenu.value = false;
   editing.value = true;
@@ -193,13 +291,48 @@ const saveEdit = () => {
   editing.value = false;
 };
 
-// Close menu when clicking outside
-if (typeof window !== 'undefined') {
-  const closeMenu = (e) => {
+const handleCopy = async () => {
+  showMenu.value = false;
+  try {
+    await navigator.clipboard.writeText(props.m.content);
+    toast.success('Message copié dans le presse-papiers');
+  } catch (e) {
+    toast.error('Impossible de copier le message');
+  }
+};
+
+const handleReply = () => {
+  showMenu.value = false;
+  emit('reply', props.m);
+};
+
+const addReaction = (emoji) => {
+  showReactionPicker.value = false;
+  emit('react', { messageId: props.m._id, emoji });
+};
+
+const handleReactionClick = (emoji) => {
+  emit('react', { messageId: props.m._id, emoji });
+};
+
+// Close menus when clicking outside
+let closeMenus;
+
+onMounted(() => {
+  closeMenus = (e) => {
     if (showMenu.value && !e.target.closest('button')) {
       showMenu.value = false;
     }
+    if (showReactionPicker.value && !e.target.closest('.relative')) {
+      showReactionPicker.value = false;
+    }
   };
-  document.addEventListener('click', closeMenu);
-}
+  document.addEventListener('click', closeMenus);
+});
+
+onUnmounted(() => {
+  if (closeMenus) {
+    document.removeEventListener('click', closeMenus);
+  }
+});
 </script>

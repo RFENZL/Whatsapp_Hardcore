@@ -126,6 +126,37 @@ exports.create = async (req, res) => {
   
   await conversation.save();
 
+  // Créer des notifications pour les mentions
+  if (mentions && Array.isArray(mentions) && mentions.length > 0) {
+    const { createNotification } = require('./notificationController');
+    
+    for (const mentionedUserId of mentions) {
+      if (String(mentionedUserId) !== String(req.user._id)) {
+        try {
+          await createNotification({
+            userId: mentionedUserId,
+            type: 'mention',
+            title: 'You were mentioned',
+            message: `${req.user.username} mentioned you in a message`,
+            data: {
+              messageId: msg._id,
+              conversationId: conversation._id,
+              groupId: group?._id,
+              fromUserId: req.user._id
+            },
+            actionUrl: `/conversations/${conversation._id}`,
+            priority: 'high'
+          });
+        } catch (err) {
+          logger.error('Failed to create mention notification', { 
+            error: err.message, 
+            mentionedUserId 
+          });
+        }
+      }
+    }
+  }
+
   // Émettre via Socket.IO
   const io = getIO();
   if (io) {
@@ -230,11 +261,28 @@ exports.update = async (req, res) => {
 };
 
 exports.remove = async (req, res) => {
-  const msg = await Message.findById(req.params.id);
+  const msg = await Message.findById(req.params.id).populate('conversation');
   if (!msg) return res.status(404).json({ error: 'Not found' });
   if (String(msg.sender) !== String(req.user._id)) return res.status(403).json({ error: 'Forbidden' });
   msg.deleted = true;
   await msg.save();
+  
+  // Émettre via Socket.IO pour notifier la suppression
+  const io = getIO();
+  if (io && msg.conversation) {
+    const conversation = msg.conversation;
+    if (conversation.participants) {
+      conversation.participants.forEach(participant => {
+        const pid = participant && participant._id ? String(participant._id) : String(participant);
+        io.to(pid).emit('message:deleted', {
+          _id: String(msg._id),
+          conversation: String(msg.conversation._id),
+          deletedBy: String(req.user._id)
+        });
+      });
+    }
+  }
+  
   res.json({ message: 'ok' });
 };
 
@@ -400,6 +448,35 @@ exports.forward = async (req, res) => {
     await targetConversation.save();
 
     forwardedMessages.push(newMessage);
+
+    // Créer des notifications de forward pour les participants
+    const { createNotification } = require('./notificationController');
+    targetConversation.participants.forEach(async (participant) => {
+      const pid = participant && participant._id ? String(participant._id) : String(participant);
+      if (pid !== String(req.user._id)) {
+        try {
+          await createNotification({
+            userId: pid,
+            type: 'message',
+            title: 'Message forwarded',
+            message: `${req.user.username} forwarded a message to you`,
+            data: {
+              messageId: newMessage._id,
+              conversationId: convId,
+              fromUserId: req.user._id,
+              metadata: { forwarded: true }
+            },
+            actionUrl: `/conversations/${convId}`,
+            priority: 'normal'
+          });
+        } catch (err) {
+          logger.error('Failed to create forward notification', { 
+            error: err.message, 
+            userId: pid 
+          });
+        }
+      }
+    });
 
     // Notifier via Socket.IO
     if (io) {

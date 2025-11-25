@@ -57,13 +57,24 @@
         :m="m" 
         @edit="handleEditMessage"
         @delete="handleDeleteMessage"
+        @reply="handleReplyMessage"
+        @react="handleReaction"
       />
     </div>
 
     <div v-show="typing" class="px-4 py-2 text-xs text-emerald-700 bg-emerald-50 border-t">en train d'écrire...</div>
 
     <div class="sticky bottom-0 z-10 border-t bg-white">
-      <Composer :key="currentPeerId" @send="send" @send-file="sendFile" @typing="typingPing" :disabled="false" />
+      <Composer 
+        ref="composerRef"
+        :key="currentPeerId" 
+        @send="send" 
+        @send-file="sendFile" 
+        @typing="typingPing" 
+        @reply="handleReply"
+        :disabled="false"
+        :replyingTo="replyingTo"
+      />
     </div>
 
     <GroupModal v-if="showGroupModal" :conversationId="props.peer._id" :token="props.token" :currentUser="props.me" @close="() => { showGroupModal = false }" @updated="onGroupUpdated" @left="onGroupLeft" />
@@ -112,8 +123,10 @@ import AddMembersModal from "./AddMembersModal.vue"
 import Composer from "./Composer.vue"
 import MessageBubble from "./MessageBubble.vue"
 import { api, uploadFile, addContact, blockContact as apiBlockContact, removeContact as apiRemoveContact } from "../lib/api.js"
+import { useToast } from "../lib/toast.js"
 
 const props = defineProps({ me: Object, peer: Object, token: String, socket: Object })
+const toast = useToast()
 
 const messages = ref([])
 const page = ref(1)
@@ -133,6 +146,11 @@ const bgColor = ref('#f9fafb')
 const bgImage = ref('')
 const conversationId = ref(null)
 const availableImages = ref([])
+const replyingTo = ref(null)
+const composerRef = ref(null)
+const showMediaPreview = ref(false)
+const previewFile = ref(null)
+const previewUrl = ref(null)
 
 const predefinedColors = [
   { name: 'Gris clair', value: '#f9fafb' },
@@ -402,15 +420,25 @@ async function send(content){
     createdAt: new Date().toISOString(),
     status: 'sent',
     edited: false,
-    deleted: false
+    deleted: false,
+    replyTo: replyingTo.value ? { content: replyingTo.value.content } : null
   }
   messages.value = [...messages.value, local]
   await nextTick()
   scrollBottom()
+  
+  // Clear reply
+  const replyToId = replyingTo.value?._id || null
+  replyingTo.value = null
+  
   try {
-    const body = props.peer.isGroup ? { conversation_id: props.peer._id, content, clientId } : { recipient_id: props.peer._id, content, clientId }
+    const body = props.peer.isGroup 
+      ? { conversation_id: props.peer._id, content, clientId, replyTo: replyToId } 
+      : { recipient_id: props.peer._id, content, clientId, replyTo: replyToId }
     await api(`/api/messages`, { method: 'POST', token: props.token, body })
-  } catch(e) {}
+  } catch(e) {
+    toast.error('Erreur lors de l\'envoi du message')
+  }
 }
 
 async function sendFile(file){
@@ -446,7 +474,17 @@ async function sendFile(file){
   scrollBottom();
 
   try {
+    // Simuler la progression d'upload
+    if (composerRef.value) {
+      composerRef.value.setUploadProgress(10);
+    }
+    
     const uploaded = await uploadFile(props.token, file);
+    
+    if (composerRef.value) {
+      composerRef.value.setUploadProgress(80);
+    }
+    
     const common = {
       content: file.name,
       clientId,
@@ -460,12 +498,22 @@ async function sendFile(file){
       ? { ...common, conversation_id: props.peer._id } 
       : { ...common, recipient_id: props.peer._id };
     await api(`/api/messages`, { method: 'POST', token: props.token, body });
+    
+    if (composerRef.value) {
+      composerRef.value.setUploadProgress(100);
+      setTimeout(() => {
+        if (composerRef.value) composerRef.value.setUploadProgress(0);
+      }, 500);
+    }
   } catch (e) {
     const idx = messages.value.findIndex(x => x.clientId === clientId);
     if (idx !== -1) {
       messages.value.splice(idx, 1);
     }
-    console.error(e);
+    toast.error('Erreur lors de l\'upload du fichier');
+    if (composerRef.value) {
+      composerRef.value.setUploadProgress(0);
+    }
   }
 }
 
@@ -485,9 +533,9 @@ async function handleAddContact() {
   showMenu.value = false
   try {
     await addContact(props.token, props.peer._id)
-    alert('Contact ajouté avec succès')
+    toast.success('Contact ajouté avec succès')
   } catch (e) {
-    alert('Erreur: ' + e.message)
+    toast.error('Erreur: ' + e.message)
   }
 }
 
@@ -496,9 +544,9 @@ async function handleBlockContact() {
   if (!confirm(`Bloquer ${props.peer.username} ?`)) return
   try {
     await apiBlockContact(props.token, props.peer._id)
-    alert('Contact bloqué')
+    toast.success('Contact bloqué')
   } catch (e) {
-    alert('Erreur: ' + e.message)
+    toast.error('Erreur: ' + e.message)
   }
 }
 
@@ -507,9 +555,9 @@ async function handleRemoveContact() {
   if (!confirm(`Supprimer ${props.peer.username} de vos contacts ?`)) return
   try {
     await apiRemoveContact(props.token, props.peer._id)
-    alert('Contact supprimé')
+    toast.success('Contact supprimé')
   } catch (e) {
-    alert('Erreur: ' + e.message)
+    toast.error('Erreur: ' + e.message)
   }
 }
 
@@ -521,7 +569,7 @@ function handleChangeBackground() {
 
 async function selectColor(color) {
   if (!conversationId.value) {
-    alert('Impossible de changer la couleur pour cette conversation')
+    toast.error('Impossible de changer la couleur pour cette conversation')
     return
   }
   
@@ -534,14 +582,15 @@ async function selectColor(color) {
     bgColor.value = color
     bgImage.value = ''
     showColorPicker.value = false
+    toast.success('Couleur de fond modifiée')
   } catch (e) {
-    alert('Erreur: ' + e.message)
+    toast.error('Erreur: ' + e.message)
   }
 }
 
 async function selectImage(image) {
   if (!conversationId.value) {
-    alert('Impossible de changer l\'image pour cette conversation')
+    toast.error('Impossible de changer l\'image pour cette conversation')
     return
   }
   
@@ -554,8 +603,9 @@ async function selectImage(image) {
     bgImage.value = image
     bgColor.value = '#f9fafb'
     showColorPicker.value = false
+    toast.success('Image de fond modifiée')
   } catch (e) {
-    alert('Erreur: ' + e.message)
+    toast.error('Erreur: ' + e.message)
   }
 }
 
@@ -573,8 +623,9 @@ async function handleEditMessage({ messageId, content }) {
       msg.content = content;
       msg.edited = true;
     }
+    toast.success('Message modifié');
   } catch (e) {
-    alert('Erreur lors de la modification: ' + e.message);
+    toast.error('Erreur lors de la modification: ' + e.message);
   }
 }
 
@@ -592,8 +643,48 @@ async function handleDeleteMessage(messageId) {
     if (msg) {
       msg.deleted = true;
     }
+    toast.success('Message supprimé');
   } catch (e) {
-    alert('Erreur lors de la suppression: ' + e.message);
+    toast.error('Erreur lors de la suppression: ' + e.message);
+  }
+}
+
+function handleReplyMessage(message) {
+  replyingTo.value = message;
+}
+
+function handleReply(value) {
+  replyingTo.value = value;
+}
+
+async function handleReaction({ messageId, emoji }) {
+  try {
+    await api(`/api/reactions`, {
+      method: 'POST',
+      token: props.token,
+      body: { messageId, emoji }
+    });
+    
+    // Update local message reactions
+    const msg = messages.value.find(m => String(m._id) === String(messageId));
+    if (msg) {
+      if (!msg.reactions) msg.reactions = [];
+      
+      // Check if user already reacted with this emoji
+      const existingIdx = msg.reactions.findIndex(r => 
+        String(r.user) === String(props.me._id) && r.emoji === emoji
+      );
+      
+      if (existingIdx !== -1) {
+        // Remove reaction
+        msg.reactions.splice(existingIdx, 1);
+      } else {
+        // Add reaction
+        msg.reactions.push({ emoji, user: props.me._id });
+      }
+    }
+  } catch (e) {
+    toast.error('Erreur lors de la réaction');
   }
 }
 
