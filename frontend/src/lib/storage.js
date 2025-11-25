@@ -13,7 +13,7 @@ function deleteCookie(name) {
   document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
 }
 
-export function useCookieAuth(initial = null) {
+export function useCookieAuth(initial = { user: null }) {
   const auth = ref(initial);
   
   // Pas besoin de watcher car les cookies sont gérés côté serveur
@@ -22,7 +22,7 @@ export function useCookieAuth(initial = null) {
   return {
     auth,
     clearAuth: () => {
-      auth.value = null;
+      auth.value = { user: null };
       // Les cookies seront supprimés par le serveur au logout
     }
   };
