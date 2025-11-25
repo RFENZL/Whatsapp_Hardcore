@@ -4,6 +4,7 @@ const Group = require('../models/Group');
 const User = require('../models/User');
 const Media = require('../models/Media');
 const { getIO } = require('../socket/io');
+const logger = require('../utils/logger');
 
 exports.create = async (req, res) => {
   const {
@@ -96,8 +97,23 @@ exports.create = async (req, res) => {
     messageData.replyTo = replyTo;
   }
 
-  // Mentions
-  if (mentions && Array.isArray(mentions)) {
+  // Extract mentions from content (@username) if not already provided
+  if (!mentions || mentions.length === 0) {
+    const mentionRegex = /@(\w+)/g;
+    const mentionedUsernames = [];
+    let match;
+    while ((match = mentionRegex.exec(content || '')) !== null) {
+      mentionedUsernames.push(match[1]);
+    }
+    
+    // Find user IDs for mentioned usernames
+    if (mentionedUsernames.length > 0) {
+      const mentionedUsers = await User.find({ 
+        username: { $in: mentionedUsernames } 
+      }).select('_id');
+      messageData.mentions = mentionedUsers.map(u => u._id);
+    }
+  } else if (mentions && Array.isArray(mentions)) {
     messageData.mentions = mentions;
   }
 
@@ -162,7 +178,11 @@ exports.create = async (req, res) => {
   if (io) {
     const payload = {
       _id: String(msg._id),
-      sender: String(msg.sender),
+      sender: {
+        _id: String(req.user._id),
+        username: req.user.username,
+        avatar: req.user.avatar || null
+      },
       recipient: msg.recipient ? String(msg.recipient) : null,
       conversation: String(msg.conversation),
       group: msg.group ? String(msg.group) : null,
@@ -175,6 +195,7 @@ exports.create = async (req, res) => {
       media: msg.media ? String(msg.media) : null,
       replyTo: msg.replyTo ? String(msg.replyTo) : null,
       mentions: msg.mentions ? msg.mentions.map(String) : [],
+      reactions: [], // Nouveau message n'a pas encore de réactions
       createdAt: msg.createdAt,
       status: msg.status,
       edited: msg.edited,
@@ -185,6 +206,12 @@ exports.create = async (req, res) => {
     conversation.participants.forEach(participant => {
       const pid = participant && participant._id ? String(participant._id) : String(participant);
       io.to(pid).emit('message:new', payload);
+      logger.info('Message emitted via Socket.IO', {
+        messageId: payload._id,
+        to: pid,
+        sender: payload.sender._id,
+        conversationId: payload.conversation
+      });
     });
   }
 
@@ -207,7 +234,15 @@ exports.getWithUser = async (req, res) => {
       { sender: req.user._id, recipient: otherId },
       { sender: otherId, recipient: req.user._id }
     ]
-  }).sort({ createdAt: -1 }).skip(skip).limit(limit);
+  })
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .populate({
+      path: 'reactions',
+      select: 'emoji user createdAt',
+      populate: { path: 'user', select: 'username avatar' }
+    });
 
   res.json({ page, limit, items });
 };
@@ -340,7 +375,12 @@ exports.search = async (req, res) => {
       .skip(skip)
       .limit(parseInt(limit))
       .populate('sender', 'username avatar')
-      .populate('recipient', 'username avatar'),
+      .populate('recipient', 'username avatar')
+      .populate({
+        path: 'reactions',
+        select: 'emoji user createdAt',
+        populate: { path: 'user', select: 'username avatar' }
+      }),
     Message.countDocuments(query)
   ]);
 
@@ -377,7 +417,12 @@ exports.getByConversation = async (req, res) => {
     .limit(parseInt(limit))
     .populate('sender', 'username avatar')
     .populate('replyTo')
-    .populate('media');
+    .populate('media')
+    .populate({
+      path: 'reactions',
+      select: 'emoji user createdAt',
+      populate: { path: 'user', select: 'username avatar' }
+    });
 
   res.json({
     messages: messages.reverse(),
@@ -630,6 +675,11 @@ exports.getPinnedMessages = async (req, res) => {
   })
     .populate('sender', 'username avatar')
     .populate('pinnedBy', 'username')
+    .populate({
+      path: 'reactions',
+      select: 'emoji user createdAt',
+      populate: { path: 'user', select: 'username avatar' }
+    })
     .sort({ pinnedAt: -1 });
 
   res.json({ pinnedMessages });
@@ -710,7 +760,12 @@ exports.advancedSearch = async (req, res) => {
       .limit(parseInt(limit))
       .populate('sender', 'username avatar')
       .populate('recipient', 'username avatar')
-      .populate('media'),
+      .populate('media')
+      .populate({
+        path: 'reactions',
+        select: 'emoji user createdAt',
+        populate: { path: 'user', select: 'username avatar' }
+      }),
     Message.countDocuments(query)
   ]);
 

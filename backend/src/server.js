@@ -12,8 +12,8 @@ const { initRedis, getRedisPubClient, getRedisSubClient } = require('./utils/red
 const messageQueue = require('./utils/messageQueue');
 const socketLogger = require('./utils/socketLogger');
 const logger = require('./utils/logger');
-const { initMessagesNamespace } = require('./socket/messagesNamespace');
-const { initNotificationsNamespace } = require('./socket/notificationsNamespace');
+const initMessagesNamespace = require('./socket/messagesNamespace');
+const initNotificationsNamespace = require('./socket/notificationsNamespace');
 
 const PORT = process.env.PORT || 4000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/tpchat';
@@ -79,10 +79,35 @@ async function start() {
 
     initSocket(io);
     setIO(io);
+    logger.info('Main Socket.IO handlers initialized');
     
     // Initialiser les namespaces Socket.IO
-    initMessagesNamespace(io);
-    initNotificationsNamespace(io);
+    logger.info('Initializing Socket.IO namespaces...');
+    try {
+      initMessagesNamespace(io);
+      logger.info('/messages namespace initialized');
+    } catch (err) {
+      console.error('ERROR IN MESSAGES NAMESPACE:', err);
+      logger.error('Error initializing /messages namespace', { 
+        error: err.message, 
+        stack: err.stack,
+        name: err.name 
+      });
+      throw err;
+    }
+    
+    try {
+      initNotificationsNamespace(io);
+      logger.info('/notifications namespace initialized');
+    } catch (err) {
+      console.error('ERROR IN NOTIFICATIONS NAMESPACE:', err);
+      logger.error('Error initializing /notifications namespace', { 
+        error: err.message, 
+        stack: err.stack,
+        name: err.name 
+      });
+      throw err;
+    }
     logger.info('Socket.IO namespaces initialized (/messages, /notifications)');
     
     // Activer le logging détaillé des événements Socket.IO

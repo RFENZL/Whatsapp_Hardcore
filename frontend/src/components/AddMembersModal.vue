@@ -1,6 +1,6 @@
 <template>
-  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="close">
-    <div class="bg-white rounded-lg w-full max-w-md mx-4 p-6">
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]" @click.self="$emit('close')">
+    <div class="bg-white rounded-lg w-full max-w-lg mx-4 p-6">
       <div class="flex items-center justify-between mb-4">
         <h3 class="text-lg font-semibold">Ajouter des personnes</h3>
         <button @click="close" class="text-gray-500">Fermer</button>

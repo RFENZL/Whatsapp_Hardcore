@@ -17,6 +17,11 @@
         </span>
 
         <template v-if="props.peer && props.peer.isGroup">
+          <button @click="handleChangeBackground" class="text-gray-600 hover:text-gray-900" title="Changer le fond">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+          </button>
           <button @click="showAddMembersModal = true" class="text-gray-600 hover:text-gray-900" title="Ajouter des membres">
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
               <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" />
@@ -31,7 +36,7 @@
                 <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
               </svg>
             </button>
-            <div v-if="showMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-50">
+            <div v-if="showMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-10">
               <button @click="handleAddContact" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm">➕ Ajouter aux contacts</button>
               <button @click="handleChangeBackground" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm">🎨 Changer le fond</button>
               <button @click="handleBlockContact" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-orange-600">🚫 Bloquer</button>
@@ -45,10 +50,9 @@
     <div ref="listRef" :style="{ 
       backgroundColor: bgColor,
       backgroundImage: bgImage ? `url(${bgImage})` : 'none',
-      backgroundSize: '100% auto',
+      backgroundSize: 'cover',
       backgroundRepeat: 'no-repeat',
-      backgroundPosition: 'center center',
-      backgroundAttachment: 'fixed'
+      backgroundPosition: 'center center'
     }" class="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-2 pb-28">
       <MessageBubble 
         v-for="m in messages" 
@@ -74,6 +78,7 @@
         @reply="handleReply"
         :disabled="false"
         :replyingTo="replyingTo"
+        :groupMembers="props.peer?.isGroup ? props.peer?.members : null"
       />
     </div>
 
@@ -81,7 +86,7 @@
     <AddMembersModal v-if="showAddMembersModal" :conversationId="props.peer._id" :token="props.token" @close="() => { showAddMembersModal = false }" @added="onMemberAdded" />
     
     <!-- Modal de sélection de couleur -->
-    <div v-if="showColorPicker" @click.self="showColorPicker = false" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div v-if="showColorPicker" @click.self="showColorPicker = false" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]">
       <div class="bg-white rounded-lg p-6 w-[500px] max-w-[90vw]">
         <h3 class="text-lg font-semibold mb-4">Choisir une couleur de fond</h3>
         
@@ -164,12 +169,14 @@ const predefinedColors = [
 ]
 
 // Charger les images disponibles
-function loadAvailableImages() {
-  // Liste statique des images disponibles
-  availableImages.value = [
-    '/images/kamehouse.svg',
-    '/images/kamehouse.jpg'
-  ]
+async function loadAvailableImages() {
+  try {
+    const images = await api('/api/images')
+    availableImages.value = images || []
+  } catch (e) {
+    console.error('Erreur chargement images:', e)
+    availableImages.value = []
+  }
 }
 
 async function loadGroupStatus() {
@@ -334,22 +341,54 @@ onUnmounted(() => {
 })
 
 function onMsg(message){
-  const pid = currentPeerId.value
-  if (!pid) return
-  const sId = String(message.sender)
-  const rId = message.recipient ? String(message.recipient) : null
+  console.log('[ChatPane] Received message:new event', { 
+    messageId: message._id, 
+    sender: message.sender,
+    conversation: message.conversation,
+    currentPeer: props.peer
+  })
+  
+  // Check if message belongs to current conversation
+  if (!props.peer) return
+  
+  // Handle both sender as object or string
+  const sId = message.sender?._id ? String(message.sender._id) : String(message.sender)
   const convId = message.conversation ? String(message.conversation) : null
-
-  const matches = sId === pid || rId === pid || convId === pid
+  
+  // For conversations, match by conversationId
+  // For direct messages without conversation, match by sender/recipient
+  let matches = false
+  
+  if (props.peer.conversationId && convId) {
+    // Match by conversation ID
+    matches = String(props.peer.conversationId) === convId
+  } else if (props.peer._id) {
+    // Match by peer ID (sender or recipient)
+    const peerId = String(props.peer._id)
+    const rId = message.recipient ? String(message.recipient) : null
+    matches = sId === peerId || rId === peerId
+  }
+  
+  console.log('[ChatPane] Message match check', { 
+    peerConvId: props.peer.conversationId,
+    messageConvId: convId,
+    peerId: props.peer._id,
+    senderId: sId,
+    matches 
+  })
+  
   if (matches) {
-    const stick = atBottom() || String(message.sender) === String(props.me._id)
+    const stick = atBottom() || sId === String(props.me._id)
     if (message.clientId) {
       const idx = messages.value.findIndex(x => x.clientId && x.clientId === message.clientId)
       if (idx !== -1) messages.value.splice(idx, 1)
     }
     if (!messages.value.find(x => String(x._id) === String(message._id))) {
       messages.value = [...messages.value, message]
+      console.log('[ChatPane] Message added to list', { messageId: message._id })
       if (stick) scrollBottom()
+    } else {
+      console.log('[ChatPane] Message already exists in list', { messageId: message._id })
     }
   }
 }
@@ -362,7 +401,37 @@ function onMessageUpdated(data) {
   if (msg) {
     msg.content = data.content;
     msg.edited = data.edited;
-    msg.editedAt = data.editedAt;
+  }
+}
+
+function onReactionUpdated(data) {
+  // data: { messageId, userId, emoji, action }
+  const msg = messages.value.find(m => String(m._id) === String(data.messageId));
+  if (msg) {
+    if (!msg.reactions) msg.reactions = [];
+    
+    if (data.action === 'removed') {
+      // Retirer la réaction
+      const idx = msg.reactions.findIndex(r => 
+        String(r.user) === String(data.userId) && r.emoji === data.emoji
+      );
+      if (idx !== -1) {
+        msg.reactions.splice(idx, 1);
+      }
+    } else {
+      // Vérifier si la réaction existe déjà
+      const existingIdx = msg.reactions.findIndex(r => 
+        String(r.user) === String(data.userId)
+      );
+      
+      if (existingIdx !== -1) {
+        // Mettre à jour l'emoji
+        msg.reactions[existingIdx].emoji = data.emoji;
+      } else {
+        // Ajouter nouvelle réaction
+        msg.reactions.push({ emoji: data.emoji, user: data.userId });
+      }
+    }
   }
 }
 
@@ -372,10 +441,12 @@ watch(() => props.socket, (s) => {
   const hTyping = (e) => onTyping(e)
   const hTypingStop = (e) => onTypingStopped(e)
   const hMsgUpdated = (data) => onMessageUpdated(data)
+  const hReaction = (data) => onReactionUpdated(data)
   s.on('message:new', hMsg)
   s.on('message:updated', hMsgUpdated)
   s.on('typing', hTyping)
   s.on('typing-stopped', hTypingStop)
+  s.on('reaction:updated', hReaction)
   const hStatus = (payload) => {
     // payload: { userId, status }
     if (props.peer && props.peer.isGroup) loadGroupStatus().catch(()=>{})
@@ -386,6 +457,7 @@ watch(() => props.socket, (s) => {
     s.off('message:updated', hMsgUpdated)
     s.off('typing', hTyping)
     s.off('typing-stopped', hTypingStop)
+    s.off('reaction:updated', hReaction)
     s.off('user-status', hStatus)
   }
 }, { immediate: true })
@@ -563,8 +635,9 @@ async function handleRemoveContact() {
 
 function handleChangeBackground() {
   showMenu.value = false
-  loadAvailableImages()
-  showColorPicker.value = true
+  loadAvailableImages().then(() => {
+    showColorPicker.value = true
+  })
 }
 
 async function selectColor(color) {
@@ -659,10 +732,10 @@ function handleReply(value) {
 
 async function handleReaction({ messageId, emoji }) {
   try {
-    await api(`/api/reactions`, {
+    await api(`/api/reactions/messages/${messageId}`, {
       method: 'POST',
       token: props.token,
-      body: { messageId, emoji }
+      body: { emoji }
     });
     
     // Update local message reactions

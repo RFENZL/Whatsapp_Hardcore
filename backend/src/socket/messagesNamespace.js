@@ -2,7 +2,7 @@ const Message = require('../models/Message');
 const Conversation = require('../models/Conversation');
 const User = require('../models/User');
 const { createNotification } = require('../controllers/notificationController');
-const { createRateLimiter, HeartbeatManager, ConflictManager } = require('./middlewares');
+const { createRateLimiter, HeartbeatManager, ConflictManager, authenticateSocket } = require('./middlewares');
 const messageQueue = require('../utils/messageQueue');
 const logger = require('../utils/logger');
 
@@ -11,11 +11,14 @@ const heartbeatManager = new HeartbeatManager();
 const conflictManager = new ConflictManager();
 
 // Rate limiters par événement
-const messageLimiter = createRateLimiter({ maxRequests: 50, windowMs: 60000 });
-const typingLimiter = createRateLimiter({ maxRequests: 30, windowMs: 60000 });
+const checkMessageLimit = createRateLimiter({ maxRequests: 50, windowMs: 60000 });
+const checkTypingLimit = createRateLimiter({ maxRequests: 30, windowMs: 60000 });
 
 module.exports = function initMessagesNamespace(io) {
   const messagesNsp = io.of('/messages');
+
+  // Appliquer le middleware d'authentification
+  messagesNsp.use(authenticateSocket);
 
   logger.info('Messages namespace initialized');
 
@@ -54,8 +57,12 @@ module.exports = function initMessagesNamespace(io) {
     });
 
     // Typing indicator avec rate limiting
-    socket.use(typingLimiter('typing'));
     socket.on('typing', ({ conversationId }, cb) => {
+      // Vérifier rate limit
+      if (!checkTypingLimit(socket, 'typing')) {
+        return cb && cb({ ok: false, error: 'Rate limit exceeded' });
+      }
+
       try {
         if (!conversationId) {
           return cb && cb({ ok: false, error: 'conversationId required' });

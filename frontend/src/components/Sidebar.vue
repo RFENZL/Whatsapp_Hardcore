@@ -23,11 +23,14 @@
       <div class="mt-3">
         <input class="w-full rounded-xl border bg-gray-50 px-3 py-2 text-sm" placeholder="Rechercher un contact" v-model="query" />
       </div>
-      <div class="mt-2 flex items-center justify-between">
+      <div class="mt-2 flex items-center justify-between gap-2">
         <button @click="showCreateGroup = true" class="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg px-3 py-2 text-xs font-medium transition-colors">
           Créer un groupe
         </button>
-        <button @click="logout" class="text-xs text-gray-600 underline">Déconnexion</button>
+        <button @click="showArchived = !showArchived" class="text-xs text-gray-600 underline hover:text-gray-900">
+          {{ showArchived ? 'Actives' : 'Archivées' }}
+        </button>
+        <button @click="logout" class="text-xs text-gray-600 underline hover:text-gray-900">Déconnexion</button>
       </div>
     </div>
 
@@ -92,8 +95,9 @@
     </ul>
 
     <!-- Modal d'ajout de contact -->
-    <div v-if="showAddContact" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="closeAddContact">
-      <div class="bg-white rounded-lg w-full max-w-md mx-4 p-6">
+    <Teleport to="body">
+      <div v-if="showAddContact" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]" @click.self="closeAddContact">
+        <div class="bg-white rounded-lg w-full max-w-md mx-4 p-6">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-lg font-semibold">Ajouter un contact</h2>
           <button @click="closeAddContact" class="text-gray-500 hover:text-gray-700">
@@ -141,16 +145,19 @@
           </li>
         </ul>
       </div>
-    </div>
+      </div>
+    </Teleport>
   </aside>
-  <CreateGroup
-    v-if="showCreateGroup"
-    :contacts="contacts"
-    :token="props.token"
-    :me="props.me"
-    @created="(g) => { refreshAll(); showCreateGroup = false }"
-    @close="() => { showCreateGroup = false }"
-  />
+  <Teleport to="body">
+    <CreateGroup
+      v-if="showCreateGroup"
+      :contacts="contacts"
+      :token="props.token"
+      :me="props.me"
+      @created="(g) => { refreshAll(); showCreateGroup = false }"
+      @close="() => { showCreateGroup = false }"
+    />
+  </Teleport>
 </template>
 
 <script setup>

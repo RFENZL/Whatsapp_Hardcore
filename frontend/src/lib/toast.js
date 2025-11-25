@@ -1,35 +1,33 @@
-import { ref } from 'vue';
-
-const toastInstance = ref(null);
-
+// Compatibilité avec window.$toast créé par le composant Toast
 export function useToast() {
-  function success(message, duration = 3000) {
-    if (toastInstance.value) {
-      toastInstance.value.addToast(message, 'success', duration);
+  function success(message, title) {
+    if (window.$toast) {
+      window.$toast.success(message, title);
     }
   }
 
-  function error(message, duration = 4000) {
-    if (toastInstance.value) {
-      toastInstance.value.addToast(message, 'error', duration);
+  function error(message, title) {
+    if (window.$toast) {
+      window.$toast.error(message, title);
     }
   }
 
-  function warning(message, duration = 3000) {
-    if (toastInstance.value) {
-      toastInstance.value.addToast(message, 'warning', duration);
+  function warning(message, title) {
+    if (window.$toast) {
+      window.$toast.warning(message, title);
     }
   }
 
-  function info(message, duration = 3000) {
-    if (toastInstance.value) {
-      toastInstance.value.addToast(message, 'info', duration);
+  function info(message, title) {
+    if (window.$toast) {
+      window.$toast.info(message, title);
     }
   }
 
   return { success, error, warning, info };
 }
 
+// Fonction vide pour compatibilité
 export function setToastInstance(instance) {
-  toastInstance.value = instance;
+  // Non utilisé avec la nouvelle version mais gardé pour compatibilité
 }

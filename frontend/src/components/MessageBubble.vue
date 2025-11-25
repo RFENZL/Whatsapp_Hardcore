@@ -36,7 +36,7 @@
             
             <!-- Display mode -->
             <div v-else-if="kind === 'text'">
-              {{ m.content }}
+              <span v-html="renderContentWithMentions(m.content)"></span>
             </div>
         <div v-else-if="kind === 'image' && fullMediaUrl" class="space-y-1">
           <a :href="fullMediaUrl" target="_blank" rel="noopener" class="block">
@@ -314,6 +314,12 @@ const addReaction = (emoji) => {
 const handleReactionClick = (emoji) => {
   emit('react', { messageId: props.m._id, emoji });
 };
+
+function renderContentWithMentions(content) {
+  if (!content) return ''
+  // Replace @username with highlighted version
+  return content.replace(/@(\w+)/g, '<span class="bg-emerald-200 text-emerald-900 px-1 rounded font-medium">@$1</span>')
+}
 
 // Close menus when clicking outside
 let closeMenus;

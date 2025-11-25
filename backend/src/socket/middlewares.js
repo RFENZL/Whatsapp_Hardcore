@@ -41,30 +41,28 @@ function createRateLimiter(options = {}) {
 
   const requests = new Map();
 
-  return function rateLimitMiddleware(event) {
-    return async ([socket, ...args], next) => {
-      const key = `${keyGenerator(socket)}:${event}`;
-      const now = Date.now();
-      
-      if (!requests.has(key)) {
-        requests.set(key, []);
-      }
+  return function checkRateLimit(socket, event) {
+    const key = `${keyGenerator(socket)}:${event}`;
+    const now = Date.now();
+    
+    if (!requests.has(key)) {
+      requests.set(key, []);
+    }
 
-      const userRequests = requests.get(key);
-      
-      // Nettoyer les anciennes requêtes
-      const recentRequests = userRequests.filter(timestamp => now - timestamp < windowMs);
-      requests.set(key, recentRequests);
+    const userRequests = requests.get(key);
+    
+    // Nettoyer les anciennes requêtes
+    const recentRequests = userRequests.filter(timestamp => now - timestamp < windowMs);
+    requests.set(key, recentRequests);
 
-      if (recentRequests.length >= maxRequests) {
-        handler(socket, event);
-        return; // Ne pas appeler next()
-      }
+    if (recentRequests.length >= maxRequests) {
+      handler(socket, event);
+      return false; // Rate limit dépassé
+    }
 
-      // Ajouter la requête actuelle
-      recentRequests.push(now);
-      next();
-    };
+    // Ajouter la requête actuelle
+    recentRequests.push(now);
+    return true; // OK
   };
 }
 

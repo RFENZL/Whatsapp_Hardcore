@@ -1,5 +1,5 @@
 const Notification = require('../models/Notification');
-const { createRateLimiter } = require('./middlewares');
+const { createRateLimiter, authenticateSocket } = require('./middlewares');
 const logger = require('../utils/logger');
 
 // Rate limiter pour les notifications
@@ -7,6 +7,9 @@ const notificationLimiter = createRateLimiter({ maxRequests: 100, windowMs: 6000
 
 module.exports = function initNotificationsNamespace(io) {
   const notificationsNsp = io.of('/notifications');
+
+  // Appliquer le middleware d'authentification
+  notificationsNsp.use(authenticateSocket);
 
   logger.info('Notifications namespace initialized');
 

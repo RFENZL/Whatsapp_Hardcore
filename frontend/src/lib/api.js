@@ -1,5 +1,11 @@
 const API_BASE = import.meta?.env?.VITE_API_BASE || "";
 
+// Callback pour gérer les erreurs 401 (token expiré)
+let on401Callback = null;
+export function setOn401Handler(callback) {
+  on401Callback = callback;
+}
+
 export async function api(path, { method = "GET", token, body } = {}) {
   const url = (API_BASE || "") + path; // path doit commencer par /
   const headers = {
@@ -25,6 +31,12 @@ export async function api(path, { method = "GET", token, body } = {}) {
   };
 
   const res = await fetch(url, fetchOpts);
+
+  // Gestion erreur 401 - token expiré
+  if (res.status === 401 && on401Callback) {
+    on401Callback();
+    throw new Error('Session expirée. Veuillez vous reconnecter.');
+  }
 
   // Réponses sans corps
   if (res.status === 204 || res.status === 205 || res.status === 304) {

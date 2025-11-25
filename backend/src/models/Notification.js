@@ -113,8 +113,7 @@ const NotificationSchema = new mongoose.Schema({
   // Date d'expiration (pour nettoyage automatique)
   expiresAt: {
     type: Date,
-    default: null,
-    index: true
+    default: null
   }
 });
 

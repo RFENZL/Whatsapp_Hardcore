@@ -9,6 +9,27 @@
       <button @click="cancelReply" class="text-gray-500 hover:text-gray-700">✕</button>
     </div>
 
+    <!-- Mentions autocomplete -->
+    <div 
+      v-if="showMentions && filteredMembers.length > 0"
+      class="absolute bottom-full mb-2 left-0 bg-white rounded-lg shadow-lg border max-h-48 overflow-y-auto z-50 w-64"
+    >
+      <button
+        v-for="(member, idx) in filteredMembers"
+        :key="member._id"
+        @click="selectMention(member)"
+        :class="[
+          'w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2',
+          idx === mentionIndex ? 'bg-emerald-50' : ''
+        ]"
+      >
+        <div class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-sm font-medium">
+          {{ member.username?.[0]?.toUpperCase() || '?' }}
+        </div>
+        <span class="text-sm">{{ member.username }}</span>
+      </button>
+    </div>
+
     <!-- Drag & drop overlay -->
     <div
       v-if="isDragging"
@@ -42,9 +63,12 @@
         type="text"
         placeholder="Écrire un message"
         v-model="text"
-        @keydown.enter.exact.prevent="send"
+        @keydown.enter.exact.prevent="handleEnter"
+        @keydown.up.prevent="navigateMentions(-1)"
+        @keydown.down.prevent="navigateMentions(1)"
+        @keydown.esc="closeMentions"
         :disabled="disabled"
-        @input="ping"
+        @input="handleInput"
         autofocus
       />
       <input
@@ -129,7 +153,8 @@ import MediaPreview from "./MediaPreview.vue";
 const emit = defineEmits(["send", "typing", "send-file", "reply"]);
 const props = defineProps({ 
   disabled: Boolean,
-  replyingTo: Object 
+  replyingTo: Object,
+  groupMembers: Array  // Liste des membres du groupe pour les mentions
 });
 
 const text = ref("");
@@ -143,6 +168,10 @@ const dragCounter = ref(0);
 const showMediaPreview = ref(false);
 const previewFile = ref(null);
 const previewUrl = ref(null);
+const showMentions = ref(false);
+const mentionQuery = ref('');
+const mentionIndex = ref(0);
+const mentionStartPos = ref(0);
 
 // Liste d'émojis populaires
 const emojis = [
@@ -171,11 +200,74 @@ const filteredEmojis = computed(() => {
   return emojis;
 });
 
+const filteredMembers = computed(() => {
+  if (!props.groupMembers || !showMentions.value) return []
+  const query = mentionQuery.value.toLowerCase()
+  return props.groupMembers.filter(m => 
+    m.username.toLowerCase().includes(query)
+  ).slice(0, 10)
+})
+
+function handleInput(e) {
+  const cursorPos = e.target.selectionStart
+  const textBeforeCursor = text.value.slice(0, cursorPos)
+  const lastAtIndex = textBeforeCursor.lastIndexOf('@')
+  
+  if (lastAtIndex !== -1 && props.groupMembers) {
+    const textAfterAt = textBeforeCursor.slice(lastAtIndex + 1)
+    // Check if there's no space after @
+    if (!textAfterAt.includes(' ')) {
+      showMentions.value = true
+      mentionQuery.value = textAfterAt
+      mentionStartPos.value = lastAtIndex
+      mentionIndex.value = 0
+    } else {
+      showMentions.value = false
+    }
+  } else {
+    showMentions.value = false
+  }
+  
+  emit("typing")
+}
+
+function navigateMentions(direction) {
+  if (!showMentions.value || filteredMembers.value.length === 0) return
+  mentionIndex.value = (mentionIndex.value + direction + filteredMembers.value.length) % filteredMembers.value.length
+}
+
+function selectMention(member) {
+  if (!member) return
+  const beforeMention = text.value.slice(0, mentionStartPos.value)
+  const afterMention = text.value.slice(inputEl.value.selectionStart)
+  text.value = beforeMention + '@' + member.username + ' ' + afterMention
+  showMentions.value = false
+  mentionQuery.value = ''
+  nextTick(() => {
+    inputEl.value?.focus()
+  })
+}
+
+function closeMentions() {
+  showMentions.value = false
+  mentionQuery.value = ''
+}
+
+function handleEnter() {
+  if (showMentions.value && filteredMembers.value.length > 0) {
+    selectMention(filteredMembers.value[mentionIndex.value])
+  } else {
+    send()
+  }
+}
+
 function send() {
   const t = text.value.trim();
   if (!t) return;
   emit("send", t);
   text.value = "";
+  showMentions.value = false;
+  mentionQuery.value = '';
 }
 
 function ping() {
