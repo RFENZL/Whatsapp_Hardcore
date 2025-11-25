@@ -64,7 +64,21 @@ const ConversationSchema = new mongoose.Schema({
   mutedBy: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
-  }]
+  }],
+
+  // Couleur de fond personnalisée par utilisateur
+  backgroundColor: {
+    type: Map,
+    of: String,
+    default: {}
+  },
+
+  // Image de fond personnalisée par utilisateur
+  backgroundImage: {
+    type: Map,
+    of: String,
+    default: {}
+  }
 });
 
 // Index pour recherche rapide des conversations d'un utilisateur
