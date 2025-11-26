@@ -68,4 +68,8 @@ function wsConnect(token) {
   })
 }
 
-module.exports = { expect, setupServer, teardownServer, agent: () => superAgent, createUser, wsConnect, uniqEmail }
+function getPort() {
+  return portCached
+}
+
+module.exports = { expect, setupServer, teardownServer, agent: () => superAgent, createUser, wsConnect, uniqEmail, getPort }

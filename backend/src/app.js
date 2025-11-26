@@ -91,6 +91,37 @@ app.use((req, res, next) => {
   next();
 });
 
+// Middleware de redirection HTTPS (forcer HTTPS en production)
+if (process.env.NODE_ENV === 'production' && process.env.USE_HTTPS !== 'false') {
+  app.use((req, res, next) => {
+    // Vérifier si la requête utilise HTTPS
+    const isHttps = req.secure || 
+                    req.headers['x-forwarded-proto'] === 'https' ||
+                    req.headers['x-forwarded-ssl'] === 'on';
+    
+    if (!isHttps) {
+      logger.warn('HTTP request redirected to HTTPS', { 
+        url: req.url, 
+        ip: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+      
+      // Rediriger vers HTTPS
+      return res.redirect(301, `https://${req.headers.host}${req.url}`);
+    }
+    
+    next();
+  });
+  
+  // Ajouter l'en-tête HSTS (HTTP Strict Transport Security)
+  app.use((req, res, next) => {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    next();
+  });
+  
+  logger.info('HTTPS enforcement enabled in production');
+}
+
 app.use(helmet());
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || true, credentials: true }));
 app.use(cookieParser());
@@ -98,25 +129,27 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('combined', { stream: logger.stream }));
 
-// Rate limiting pour les routes d'authentification
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 tentatives max
-  message: { error: 'Too many login attempts, please try again later' },
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    logger.warn('Rate limit exceeded', { 
-      ip: req.ip, 
-      path: req.path,
-      method: req.method 
-    });
-    res.status(429).json({ error: 'Too many login attempts, please try again later' });
-  }
-});
+// Rate limiting pour les routes d'authentification (désactivé en test)
+if (process.env.NODE_ENV !== 'test') {
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // 5 tentatives max
+    message: { error: 'Too many login attempts, please try again later' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+      logger.warn('Rate limit exceeded', { 
+        ip: req.ip, 
+        path: req.path,
+        method: req.method 
+      });
+      res.status(429).json({ error: 'Too many login attempts, please try again later' });
+    }
+  });
 
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
+  app.use('/api/auth/login', authLimiter);
+  app.use('/api/auth/register', authLimiter);
+}
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);

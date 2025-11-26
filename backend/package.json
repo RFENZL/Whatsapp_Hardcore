@@ -7,8 +7,12 @@
   "scripts": {
     "start": "NODE_ENV=production node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "mocha --timeout 25000 \"test/**/*.test.js\"",
-    "coverage": "nyc -r text -r html -r lcov npm run test",
+    "test": "cross-env NODE_ENV=test mocha --timeout 25000 \"test/**/*.test.js\"",
+    "test:auth": "cross-env NODE_ENV=test mocha --timeout 10000 \"test/auth*.test.js\"",
+    "test:messages": "cross-env NODE_ENV=test mocha --timeout 15000 \"test/messages*.test.js\"",
+    "test:users": "cross-env NODE_ENV=test mocha --timeout 10000 \"test/users*.test.js\"",
+    "test:middleware": "cross-env NODE_ENV=test mocha --timeout 10000 \"test/middleware.test.js\"",
+    "coverage": "cross-env NODE_ENV=test nyc -r text -r html -r lcov npm run test",
     "serve:dist": "node src/server.js",
     "test:monitoring": "node test-monitoring.js"
   },
@@ -40,6 +44,7 @@
   },
   "devDependencies": {
     "chai": "^5.3.3",
+    "cross-env": "^10.1.0",
     "mocha": "^11.7.4",
     "mongodb-memory-server": "^10.3.0",
     "nodemon": "^3.1.7",

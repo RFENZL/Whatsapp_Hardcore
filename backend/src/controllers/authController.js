@@ -88,7 +88,8 @@ exports.register = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 jours
     });
     
-    res.status(201).json({ user: user.toJSON() });
+    // Retourner le token dans le body aussi (pour les clients qui n'utilisent pas les cookies)
+    res.status(201).json({ user: user.toJSON(), token });
   } catch (error) {
     // Gérer les erreurs de duplication MongoDB
     if (error.code === 11000) {
@@ -196,7 +197,8 @@ exports.login = async (req, res) => {
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 jours
   });
   
-  res.json({ user: user.toJSON(), sessionId: session._id });
+  // Retourner le token dans le body aussi (pour les clients qui n'utilisent pas les cookies)
+  res.json({ user: user.toJSON(), token, sessionId: session._id });
 };
 
 exports.logout = async (req, res) => {

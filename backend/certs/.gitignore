@@ -1,0 +1,8 @@
+# Ignorer tous les fichiers de certificats générés
+*.pem
+*.key
+*.crt
+*.csr
+
+# Garder ce fichier .gitignore
+!.gitignore
