@@ -3,10 +3,16 @@
     <!-- Réponse citée -->
     <div v-if="replyingTo" class="px-3 pt-3 pb-1 bg-emerald-50 border-l-4 border-emerald-500 flex items-center justify-between">
       <div class="text-sm">
-        <div class="font-medium text-emerald-700">Répondre à:</div>
-        <div class="text-gray-600 truncate">{{ replyingTo.content }}</div>
+        <div class="font-medium text-emerald-700">
+          Répondre à:
+        </div>
+        <div class="text-gray-600 truncate">
+          {{ replyingTo.content }}
+        </div>
       </div>
-      <button @click="cancelReply" class="text-gray-500 hover:text-gray-700">✕</button>
+      <button class="text-gray-500 hover:text-gray-700" @click="cancelReply">
+        ✕
+      </button>
     </div>
 
     <!-- Mentions autocomplete -->
@@ -17,11 +23,11 @@
       <button
         v-for="(member, idx) in filteredMembers"
         :key="member._id"
-        @click="selectMention(member)"
         :class="[
           'w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2',
           idx === mentionIndex ? 'bg-emerald-50' : ''
         ]"
+        @click="selectMention(member)"
       >
         <div class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-sm font-medium">
           {{ member.username?.[0]?.toUpperCase() || '?' }}
@@ -36,8 +42,12 @@
       class="absolute inset-0 bg-emerald-500 bg-opacity-90 flex items-center justify-center z-50 border-2 border-dashed border-white"
     >
       <div class="text-white text-center">
-        <div class="text-4xl mb-2">📎</div>
-        <div class="text-xl font-medium">Déposer le fichier ici</div>
+        <div class="text-4xl mb-2">
+          📎
+        </div>
+        <div class="text-xl font-medium">
+          Déposer le fichier ici
+        </div>
       </div>
     </div>
 
@@ -50,49 +60,49 @@
       <button
         type="button"
         class="rounded-full border px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-50"
-        @click="toggleEmojiPicker"
         :disabled="disabled"
         title="Émojis"
+        @click="toggleEmojiPicker"
       >
         😀
       </button>
       
       <input
         ref="inputEl"
+        v-model="text"
         class="flex-1 bg-white border rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
         type="text"
         placeholder="Écrire un message"
-        v-model="text"
+        :disabled="disabled"
+        autofocus
         @keydown.enter.exact.prevent="handleEnter"
         @keydown.up.prevent="navigateMentions(-1)"
         @keydown.down.prevent="navigateMentions(1)"
         @keydown.esc="closeMentions"
-        :disabled="disabled"
         @input="handleInput"
-        autofocus
       />
       <input
         ref="fileInput"
         type="file"
         class="hidden"
-        @change="onFileChange"
         :disabled="disabled"
         accept="image/*,video/*,.pdf,.doc,.docx,.txt"
+        @change="onFileChange"
       />
       <button
         type="button"
         class="rounded-full border px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 disabled:opacity-50"
-        @click="triggerFile"
         :disabled="disabled"
         title="Joindre un fichier"
+        @click="triggerFile"
       >
         📎
       </button>
       <button
         type="button"
         class="rounded-full bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 text-sm font-medium disabled:opacity-50"
-        @click="send"
         :disabled="disabled"
+        @click="send"
       >
         Envoyer
       </button>
@@ -114,9 +124,9 @@
           <button
             v-for="emoji in filteredEmojis"
             :key="emoji"
-            @click="insertEmoji(emoji)"
             class="text-2xl hover:bg-gray-100 rounded p-1 transition-colors"
             type="button"
+            @click="insertEmoji(emoji)"
           >
             {{ emoji }}
           </button>
@@ -132,14 +142,16 @@
           :style="{ width: uploadProgress + '%' }"
         ></div>
       </div>
-      <div class="text-xs text-gray-600 text-center mt-1">Upload: {{ uploadProgress }}%</div>
+      <div class="text-xs text-gray-600 text-center mt-1">
+        Upload: {{ uploadProgress }}%
+      </div>
     </div>
 
     <!-- Media Preview Modal -->
     <MediaPreview 
       :show="showMediaPreview"
       :file="previewFile"
-      :previewUrl="previewUrl"
+      :preview-url="previewUrl"
       @cancel="cancelPreview"
       @confirm="confirmPreview"
     />
@@ -147,21 +159,21 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from "vue";
-import MediaPreview from "./MediaPreview.vue";
+import { ref, onMounted, onUnmounted, computed } from 'vue';
+import MediaPreview from './MediaPreview.vue';
 
-const emit = defineEmits(["send", "typing", "send-file", "reply"]);
+const emit = defineEmits(['send', 'typing', 'send-file', 'reply']);
 const props = defineProps({ 
   disabled: Boolean,
   replyingTo: Object,
   groupMembers: Array  // Liste des membres du groupe pour les mentions
 });
 
-const text = ref("");
+const text = ref('');
 const inputEl = ref(null);
 const fileInput = ref(null);
 const showEmojiPicker = ref(false);
-const emojiSearch = ref("");
+const emojiSearch = ref('');
 const isDragging = ref(false);
 const uploadProgress = ref(0);
 const dragCounter = ref(0);
@@ -175,23 +187,23 @@ const mentionStartPos = ref(0);
 
 // Liste d'émojis populaires
 const emojis = [
-  "😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂",
-  "🙂", "🙃", "😉", "😊", "😇", "🥰", "😍", "🤩",
-  "😘", "😗", "😚", "😙", "😋", "😛", "😜", "🤪",
-  "😝", "🤑", "🤗", "🤭", "🤫", "🤔", "🤐", "🤨",
-  "😐", "😑", "😶", "😏", "😒", "🙄", "😬", "🤥",
-  "😌", "😔", "😪", "🤤", "😴", "😷", "🤒", "🤕",
-  "🤢", "🤮", "🤧", "🥵", "🥶", "😎", "🤓", "🧐",
-  "😕", "😟", "🙁", "😮", "😯", "😲", "😳", "🥺",
-  "😦", "😧", "😨", "😰", "😥", "😢", "😭", "😱",
-  "😖", "😣", "😞", "😓", "😩", "😫", "🥱", "😤",
-  "😡", "😠", "🤬", "👍", "👎", "👏", "🙌", "👐",
-  "🤝", "🙏", "✌️", "🤞", "🤟", "🤘", "🤙", "👈",
-  "👉", "👆", "👇", "☝️", "👋", "🤚", "🖐", "✋",
-  "🖖", "💪", "🦵", "🦶", "👂", "🦻", "👃", "❤️",
-  "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎",
-  "💔", "❣️", "💕", "💞", "💓", "💗", "💖", "💘",
-  "💝", "🔥", "✨", "🌟", "⭐", "💫", "🎉", "🎊"
+  '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂',
+  '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩',
+  '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪',
+  '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨',
+  '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥',
+  '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕',
+  '🤢', '🤮', '🤧', '🥵', '🥶', '😎', '🤓', '🧐',
+  '😕', '😟', '🙁', '😮', '😯', '😲', '😳', '🥺',
+  '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱',
+  '😖', '😣', '😞', '😓', '😩', '😫', '🥱', '😤',
+  '😡', '😠', '🤬', '👍', '👎', '👏', '🙌', '👐',
+  '🤝', '🙏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈',
+  '👉', '👆', '👇', '☝️', '👋', '🤚', '🖐', '✋',
+  '🖖', '💪', '🦵', '🦶', '👂', '🦻', '👃', '❤️',
+  '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎',
+  '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘',
+  '💝', '🔥', '✨', '🌟', '⭐', '💫', '🎉', '🎊'
 ];
 
 const filteredEmojis = computed(() => {
@@ -201,77 +213,77 @@ const filteredEmojis = computed(() => {
 });
 
 const filteredMembers = computed(() => {
-  if (!props.groupMembers || !showMentions.value) return []
-  const query = mentionQuery.value.toLowerCase()
+  if (!props.groupMembers || !showMentions.value) return [];
+  const query = mentionQuery.value.toLowerCase();
   return props.groupMembers.filter(m => 
     m.username.toLowerCase().includes(query)
-  ).slice(0, 10)
-})
+  ).slice(0, 10);
+});
 
 function handleInput(e) {
-  const cursorPos = e.target.selectionStart
-  const textBeforeCursor = text.value.slice(0, cursorPos)
-  const lastAtIndex = textBeforeCursor.lastIndexOf('@')
+  const cursorPos = e.target.selectionStart;
+  const textBeforeCursor = text.value.slice(0, cursorPos);
+  const lastAtIndex = textBeforeCursor.lastIndexOf('@');
   
   if (lastAtIndex !== -1 && props.groupMembers) {
-    const textAfterAt = textBeforeCursor.slice(lastAtIndex + 1)
+    const textAfterAt = textBeforeCursor.slice(lastAtIndex + 1);
     // Check if there's no space after @
     if (!textAfterAt.includes(' ')) {
-      showMentions.value = true
-      mentionQuery.value = textAfterAt
-      mentionStartPos.value = lastAtIndex
-      mentionIndex.value = 0
+      showMentions.value = true;
+      mentionQuery.value = textAfterAt;
+      mentionStartPos.value = lastAtIndex;
+      mentionIndex.value = 0;
     } else {
-      showMentions.value = false
+      showMentions.value = false;
     }
   } else {
-    showMentions.value = false
+    showMentions.value = false;
   }
   
-  emit("typing")
+  emit('typing');
 }
 
 function navigateMentions(direction) {
-  if (!showMentions.value || filteredMembers.value.length === 0) return
-  mentionIndex.value = (mentionIndex.value + direction + filteredMembers.value.length) % filteredMembers.value.length
+  if (!showMentions.value || filteredMembers.value.length === 0) return;
+  mentionIndex.value = (mentionIndex.value + direction + filteredMembers.value.length) % filteredMembers.value.length;
 }
 
 function selectMention(member) {
-  if (!member) return
-  const beforeMention = text.value.slice(0, mentionStartPos.value)
-  const afterMention = text.value.slice(inputEl.value.selectionStart)
-  text.value = beforeMention + '@' + member.username + ' ' + afterMention
-  showMentions.value = false
-  mentionQuery.value = ''
+  if (!member) return;
+  const beforeMention = text.value.slice(0, mentionStartPos.value);
+  const afterMention = text.value.slice(inputEl.value.selectionStart);
+  text.value = beforeMention + '@' + member.username + ' ' + afterMention;
+  showMentions.value = false;
+  mentionQuery.value = '';
   nextTick(() => {
-    inputEl.value?.focus()
-  })
+    inputEl.value?.focus();
+  });
 }
 
 function closeMentions() {
-  showMentions.value = false
-  mentionQuery.value = ''
+  showMentions.value = false;
+  mentionQuery.value = '';
 }
 
 function handleEnter() {
   if (showMentions.value && filteredMembers.value.length > 0) {
-    selectMention(filteredMembers.value[mentionIndex.value])
+    selectMention(filteredMembers.value[mentionIndex.value]);
   } else {
-    send()
+    send();
   }
 }
 
 function send() {
   const t = text.value.trim();
   if (!t) return;
-  emit("send", t);
-  text.value = "";
+  emit('send', t);
+  text.value = '';
   showMentions.value = false;
   mentionQuery.value = '';
 }
 
 function ping() {
-  emit("typing");
+  emit('typing');
 }
 
 function triggerFile() {
@@ -285,7 +297,7 @@ function onFileChange(e) {
   if (file) {
     handleFileSelection(file);
   }
-  e.target.value = "";
+  e.target.value = '';
 }
 
 function handleFileSelection(file) {
@@ -298,7 +310,7 @@ function handleFileSelection(file) {
     showMediaPreview.value = true;
   } else {
     // Send directly for other files
-    emit("send-file", file);
+    emit('send-file', file);
   }
 }
 
@@ -316,7 +328,7 @@ function confirmPreview(caption) {
   if (previewFile.value) {
     // If there's a caption, we could send it somehow
     // For now, just send the file
-    emit("send-file", previewFile.value);
+    emit('send-file', previewFile.value);
   }
   if (previewUrl.value) {
     URL.revokeObjectURL(previewUrl.value);
@@ -336,7 +348,7 @@ function insertEmoji(emoji) {
 }
 
 function cancelReply() {
-  emit("reply", null);
+  emit('reply', null);
 }
 
 function onDragOver(e) {

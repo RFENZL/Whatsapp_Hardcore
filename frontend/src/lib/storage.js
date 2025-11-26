@@ -1,4 +1,4 @@
-import { ref } from "vue"
+import { ref } from 'vue';
 
 // Fonction pour lire un cookie par son nom
 function getCookie(name) {
@@ -35,6 +35,6 @@ export function useLocalStorage(key, initial) {
   try { 
     const raw = localStorage.getItem(key); 
     if (raw) s.value = JSON.parse(raw);
-  } catch {}
+  } catch (_err) { /* ignored */ }
   return s;
 }

@@ -11,8 +11,8 @@ const ALLOWED_TYPES = {
   video: ['video/mp4', 'video/mpeg', 'video/quicktime', 'video/webm'],
   audio: ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/webm'],
   document: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-             'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-             'text/plain', 'application/zip', 'application/x-rar-compressed']
+    'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain', 'application/zip', 'application/x-rar-compressed']
 };
 
 // Tailles maximales (en octets)

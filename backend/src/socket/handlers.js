@@ -61,7 +61,7 @@ module.exports = function initSocket(io) {
   }
 
   // Log ALL connection attempts before middleware
-  io.engine.on("connection", (rawSocket) => {
+  io.engine.on('connection', (rawSocket) => {
     logger.info('Raw Socket.IO engine connection', { 
       socketId: rawSocket.id,
       transport: rawSocket.transport?.name || 'unknown'

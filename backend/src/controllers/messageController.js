@@ -133,13 +133,13 @@ exports.create = async (req, res) => {
   conversation.lastMessageAt = msg.createdAt;
   
   // Incrémenter les compteurs de non-lus
-    conversation.participants.forEach(participant => {
-      const participantId = participant && participant._id ? String(participant._id) : String(participant);
-      if (participantId !== String(req.user._id)) {
-        const currentCount = conversation.unreadCount.get(participantId) || 0;
-        conversation.unreadCount.set(participantId, currentCount + 1);
-      }
-    });
+  conversation.participants.forEach(participant => {
+    const participantId = participant && participant._id ? String(participant._id) : String(participant);
+    if (participantId !== String(req.user._id)) {
+      const currentCount = conversation.unreadCount.get(participantId) || 0;
+      conversation.unreadCount.set(participantId, currentCount + 1);
+    }
+  });
   
   await conversation.save();
 

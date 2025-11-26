@@ -3,11 +3,13 @@
   <div class="flex flex-col h-full">
     <div class="px-4 py-3 flex items-center justify-between border-b bg-white">
       <div class="flex items-center gap-3 min-w-0">
-        <button type="button" @click="onAvatarClick" class="p-0 bg-transparent border-0 cursor-pointer">
+        <button type="button" class="p-0 bg-transparent border-0 cursor-pointer" @click="onAvatarClick">
           <Avatar :user="props.peer" />
         </button>
         <div class="min-w-0">
-          <div class="font-medium truncate">{{ props.peer?.username }}</div>
+          <div class="font-medium truncate">
+            {{ props.peer?.username }}
+          </div>
         </div>
       </div>
       <div class="flex items-center gap-2">
@@ -17,12 +19,22 @@
         </span>
 
         <template v-if="props.peer && props.peer.isGroup">
-          <button @click="handleChangeBackground" class="text-gray-600 hover:text-gray-900" title="Changer le fond">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+          <button class="text-gray-600 hover:text-gray-900" title="Changer le fond" @click="handleChangeBackground">
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+              />
             </svg>
           </button>
-          <button @click="showAddMembersModal = true" class="text-gray-600 hover:text-gray-900" title="Ajouter des membres">
+          <button class="text-gray-600 hover:text-gray-900" title="Ajouter des membres" @click="showAddMembersModal = true">
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
               <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" />
             </svg>
@@ -31,29 +43,41 @@
 
         <template v-else>
           <div class="relative">
-            <button @click="toggleMenu" class="text-gray-600 hover:text-gray-900" title="Actions">
+            <button class="text-gray-600 hover:text-gray-900" title="Actions" @click="toggleMenu">
               <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
               </svg>
             </button>
             <div v-if="showMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-50">
-              <button @click="handleAddContact" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm">➕ Ajouter aux contacts</button>
-              <button @click="handleChangeBackground" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm">🎨 Changer le fond</button>
-              <button @click="handleBlockContact" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-orange-600">🚫 Bloquer</button>
-              <button @click="handleRemoveContact" class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-red-600">🗑️ Supprimer</button>
+              <button class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm" @click="handleAddContact">
+                ➕ Ajouter aux contacts
+              </button>
+              <button class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm" @click="handleChangeBackground">
+                🎨 Changer le fond
+              </button>
+              <button class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-orange-600" @click="handleBlockContact">
+                🚫 Bloquer
+              </button>
+              <button class="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-red-600" @click="handleRemoveContact">
+                🗑️ Supprimer
+              </button>
             </div>
           </div>
         </template>
       </div>
     </div>
 
-    <div ref="listRef" :style="{ 
-      backgroundColor: bgColor,
-      backgroundImage: bgImage ? `url(${bgImage})` : 'none',
-      backgroundSize: 'cover',
-      backgroundRepeat: 'no-repeat',
-      backgroundPosition: 'center center'
-    }" class="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-2 pb-28">
+    <div
+      ref="listRef"
+      :style="{ 
+        backgroundColor: bgColor,
+        backgroundImage: bgImage ? `url(${bgImage})` : 'none',
+        backgroundSize: 'cover',
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'center center'
+      }"
+      class="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-2 pb-28"
+    >
       <MessageBubble 
         v-for="m in messages" 
         :key="m._id" 
@@ -66,35 +90,60 @@
       />
     </div>
 
-    <div v-show="typing" class="px-4 py-2 text-xs text-emerald-700 bg-emerald-50 border-t">en train d'écrire...</div>
+    <div v-show="typing" class="px-4 py-2 text-xs text-emerald-700 bg-emerald-50 border-t">
+      en train d'écrire...
+    </div>
 
     <div class="sticky bottom-0 z-10 border-t bg-white">
       <Composer 
         ref="composerRef"
         :key="currentPeerId" 
-        @send="send" 
-        @send-file="sendFile" 
-        @typing="typingPing" 
+        :disabled="false" 
+        :replying-to="replyingTo" 
+        :group-members="props.peer?.isGroup ? props.peer?.members : null" 
+        @send="send"
+        @send-file="sendFile"
+        @typing="typingPing"
         @reply="handleReply"
-        :disabled="false"
-        :replyingTo="replyingTo"
-        :groupMembers="props.peer?.isGroup ? props.peer?.members : null"
       />
     </div>
 
-    <GroupModal v-if="showGroupModal" :conversationId="props.peer._id" :token="props.token" :currentUser="props.me" @close="() => { showGroupModal = false }" @updated="onGroupUpdated" @left="onGroupLeft" />
-    <AddMembersModal v-if="showAddMembersModal" :conversationId="props.peer._id" :token="props.token" @close="() => { showAddMembersModal = false }" @added="onMemberAdded" />
+    <GroupModal
+      v-if="showGroupModal"
+      :conversation-id="props.peer._id"
+      :token="props.token"
+      :current-user="props.me"
+      @close="() => { showGroupModal = false }"
+      @updated="onGroupUpdated"
+      @left="onGroupLeft"
+    />
+    <AddMembersModal
+      v-if="showAddMembersModal"
+      :conversation-id="props.peer._id"
+      :token="props.token"
+      @close="() => { showAddMembersModal = false }"
+      @added="onMemberAdded"
+    />
     
     <!-- Modal de sélection de couleur -->
-    <div v-if="showColorPicker" @click.self="showColorPicker = false" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div v-if="showColorPicker" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" @click.self="showColorPicker = false">
       <div class="bg-white rounded-lg p-6 w-[500px] max-w-[90vw]">
-        <h3 class="text-lg font-semibold mb-4">Choisir une couleur de fond</h3>
+        <h3 class="text-lg font-semibold mb-4">
+          Choisir une couleur de fond
+        </h3>
         
         <!-- Images de fond -->
         <div class="mb-6">
-          <h4 class="text-sm font-medium mb-2">Images:</h4>
+          <h4 class="text-sm font-medium mb-2">
+            Images:
+          </h4>
           <div class="grid grid-cols-3 gap-3">
-            <button v-for="img in availableImages" :key="img" @click="selectImage(img)" class="relative h-20 rounded-lg border-2 hover:border-emerald-500 transition-colors overflow-hidden">
+            <button
+              v-for="img in availableImages"
+              :key="img"
+              class="relative h-20 rounded-lg border-2 hover:border-emerald-500 transition-colors overflow-hidden"
+              @click="selectImage(img)"
+            >
               <img :src="img" alt="Background" class="w-full h-full object-cover" />
             </button>
           </div>
@@ -102,60 +151,73 @@
         
         <!-- Couleurs -->
         <div class="mb-6">
-          <h4 class="text-sm font-medium mb-2">Couleurs:</h4>
+          <h4 class="text-sm font-medium mb-2">
+            Couleurs:
+          </h4>
           <div class="grid grid-cols-4 gap-3">
-            <button v-for="color in predefinedColors" :key="color.value" @click="selectColor(color.value)" :style="{ backgroundColor: color.value }" :title="color.name" class="w-full h-12 rounded-lg border-2 hover:border-emerald-500 transition-colors"></button>
+            <button
+              v-for="color in predefinedColors"
+              :key="color.value"
+              :style="{ backgroundColor: color.value }"
+              :title="color.name"
+              class="w-full h-12 rounded-lg border-2 hover:border-emerald-500 transition-colors"
+              @click="selectColor(color.value)"
+            ></button>
           </div>
         </div>
         
         <!-- Couleur personnalisée -->
         <div class="flex items-center gap-2 mb-4">
           <label class="text-sm font-medium">Personnalisée:</label>
-          <input type="color" v-model="customColor" class="w-16 h-10 rounded cursor-pointer" />
-          <button @click="selectColor(customColor)" class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600">Appliquer</button>
+          <input v-model="customColor" type="color" class="w-16 h-10 rounded cursor-pointer" />
+          <button class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600" @click="selectColor(customColor)">
+            Appliquer
+          </button>
         </div>
-        <button @click="showColorPicker = false" class="w-full px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200">Annuler</button>
+        <button class="w-full px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200" @click="showColorPicker = false">
+          Annuler
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref, watch, computed, nextTick, watchEffect } from "vue"
-import Avatar from "./Avatar.vue"
-import GroupModal from "./GroupModal.vue"
-import AddMembersModal from "./AddMembersModal.vue"
-import Composer from "./Composer.vue"
-import MessageBubble from "./MessageBubble.vue"
-import { api, uploadFile, addContact, blockContact as apiBlockContact, removeContact as apiRemoveContact } from "../lib/api.js"
-import { useToast } from "../lib/toast.js"
+import { onMounted, onUnmounted, ref, watch, computed, nextTick, watchEffect } from 'vue';
+import Avatar from './Avatar.vue';
+import GroupModal from './GroupModal.vue';
+import AddMembersModal from './AddMembersModal.vue';
+import Composer from './Composer.vue';
+import MessageBubble from './MessageBubble.vue';
+import { api, uploadFile, addContact, blockContact as apiBlockContact, removeContact as apiRemoveContact } from '../lib/api.js';
+import { useToast } from '../lib/toast.js';
 
-const props = defineProps({ me: Object, peer: Object, token: String, socket: Object })
-const toast = useToast()
+const props = defineProps({ me: Object, peer: Object, token: String, socket: Object });
+const toast = useToast();
 
-const messages = ref([])
-const page = ref(1)
-const showMenu = ref(false)
-const showGroupModal = ref(false)
-const showAddMembersModal = ref(false)
-const hasMore = ref(true)
-const typing = ref(false)
-const listRef = ref(null)
-const currentPeerId = ref(null)
-const loadedFor = ref(null)
-const socketReady = computed(() => !!(props.socket && props.socket.connected))
-const onlineCount = ref(0)
-const showColorPicker = ref(false)
-const customColor = ref('#ffffff')
-const bgColor = ref('#f9fafb')
-const bgImage = ref('')
-const conversationId = ref(null)
-const availableImages = ref([])
-const replyingTo = ref(null)
-const composerRef = ref(null)
-const showMediaPreview = ref(false)
-const previewFile = ref(null)
-const previewUrl = ref(null)
+const messages = ref([]);
+const page = ref(1);
+const showMenu = ref(false);
+const showGroupModal = ref(false);
+const showAddMembersModal = ref(false);
+const hasMore = ref(true);
+const typing = ref(false);
+const listRef = ref(null);
+const currentPeerId = ref(null);
+const loadedFor = ref(null);
+const socketReady = computed(() => !!(props.socket && props.socket.connected));
+const onlineCount = ref(0);
+const showColorPicker = ref(false);
+const customColor = ref('#ffffff');
+const bgColor = ref('#f9fafb');
+const bgImage = ref('');
+const conversationId = ref(null);
+const availableImages = ref([]);
+const replyingTo = ref(null);
+const composerRef = ref(null);
+const showMediaPreview = ref(false);
+const previewFile = ref(null);
+const previewUrl = ref(null);
 
 const predefinedColors = [
   { name: 'Gris clair', value: '#f9fafb' },
@@ -166,179 +228,179 @@ const predefinedColors = [
   { name: 'Violet clair', value: '#ede9fe' },
   { name: 'Orange clair', value: '#fed7aa' },
   { name: 'Beige', value: '#fef5e7' }
-]
+];
 
 // Charger les images disponibles
 async function loadAvailableImages() {
   try {
-    const images = await api('/api/images')
-    availableImages.value = images || []
+    const images = await api('/api/images');
+    availableImages.value = images || [];
   } catch (e) {
-    console.error('Erreur chargement images:', e)
-    availableImages.value = []
+    console.error('Erreur chargement images:', e);
+    availableImages.value = [];
   }
 }
 
 async function loadGroupStatus() {
   try {
-    if (!props.peer || !props.peer.isGroup) { onlineCount.value = 0; return }
-    const conv = await api(`/api/conversations/${props.peer._id}`, { token: props.token })
-    const groupId = conv && conv.group ? (conv.group._id || conv.group) : null
-    if (!groupId) { onlineCount.value = 0; return }
-    const group = await api(`/api/groups/${groupId}`, { token: props.token })
-    if (!group || !group.members) { onlineCount.value = 0; return }
+    if (!props.peer || !props.peer.isGroup) { onlineCount.value = 0; return; }
+    const conv = await api(`/api/conversations/${props.peer._id}`, { token: props.token });
+    const groupId = conv && conv.group ? (conv.group._id || conv.group) : null;
+    if (!groupId) { onlineCount.value = 0; return; }
+    const group = await api(`/api/groups/${groupId}`, { token: props.token });
+    if (!group || !group.members) { onlineCount.value = 0; return; }
     const count = group.members.reduce((acc, m) => {
-      const u = m.user
-      const status = (typeof u === 'object') ? u.status : null
-      return acc + (status === 'online' ? 1 : 0)
-    }, 0)
-    onlineCount.value = count
+      const u = m.user;
+      const status = (typeof u === 'object') ? u.status : null;
+      return acc + (status === 'online' ? 1 : 0);
+    }, 0);
+    onlineCount.value = count;
   } catch (e) {
-    onlineCount.value = 0
+    onlineCount.value = 0;
   }
 }
 
 function scrollBottom() {
-  const el = listRef.value
-  if (el) el.scrollTop = el.scrollHeight
+  const el = listRef.value;
+  if (el) el.scrollTop = el.scrollHeight;
 }
 function atBottom() {
-  const el = listRef.value
-  if (!el) return true
-  return el.scrollHeight - el.scrollTop - el.clientHeight < 40
+  const el = listRef.value;
+  if (!el) return true;
+  return el.scrollHeight - el.scrollTop - el.clientHeight < 40;
 }
 
 async function load(p=1){
-  let data
+  let data;
   // If peer is a group, props.peer._id is the conversation id
   if (props.peer && props.peer.isGroup) {
-    data = await api(`/api/messages/conversation/${props.peer._id}?page=${p}&limit=30`, { token: props.token })
-    conversationId.value = props.peer._id
+    data = await api(`/api/messages/conversation/${props.peer._id}?page=${p}&limit=30`, { token: props.token });
+    conversationId.value = props.peer._id;
   } else {
-    data = await api(`/api/messages/${props.peer?._id}?page=${p}&limit=30`, { token: props.token })
+    data = await api(`/api/messages/${props.peer?._id}?page=${p}&limit=30`, { token: props.token });
   }
   
   // Charger les infos de conversation pour obtenir la couleur de fond
   if (p === 1 && props.peer?._id) {
     try {
-      let convId = conversationId.value
+      let convId = conversationId.value;
       if (!props.peer.isGroup) {
-        const conv = await api('/api/conversations/direct', { method: 'POST', token: props.token, body: { participantId: props.peer._id } })
-        convId = conv && conv._id ? conv._id : null
-        conversationId.value = convId
+        const conv = await api('/api/conversations/direct', { method: 'POST', token: props.token, body: { participantId: props.peer._id } });
+        convId = conv && conv._id ? conv._id : null;
+        conversationId.value = convId;
       }
       
       if (convId) {
-        const convData = await api(`/api/conversations/${convId}`, { token: props.token })
+        const convData = await api(`/api/conversations/${convId}`, { token: props.token });
         if (convData && convData.backgroundImage) {
-          bgImage.value = convData.backgroundImage
-          bgColor.value = '#f9fafb'
+          bgImage.value = convData.backgroundImage;
+          bgColor.value = '#f9fafb';
         } else if (convData && convData.backgroundColor) {
-          bgColor.value = convData.backgroundColor
-          bgImage.value = ''
+          bgColor.value = convData.backgroundColor;
+          bgImage.value = '';
         } else {
-          bgColor.value = '#f9fafb'
-          bgImage.value = ''
+          bgColor.value = '#f9fafb';
+          bgImage.value = '';
         }
       }
     } catch (e) {
-      bgColor.value = '#f9fafb'
-      bgImage.value = ''
+      bgColor.value = '#f9fafb';
+      bgImage.value = '';
     }
   }
   
-  const raw = data && (data.items || data.messages) ? (data.items || data.messages) : []
-  const isConversationShape = !!(data && data.messages)
-  const itemsAscending = isConversationShape ? raw : raw.slice().reverse()
+  const raw = data && (data.items || data.messages) ? (data.items || data.messages) : [];
+  const isConversationShape = !!(data && data.messages);
+  const itemsAscending = isConversationShape ? raw : raw.slice().reverse();
 
   const normalize = (msg) => {
-    const m = { ...msg }
-    if (m.sender && typeof m.sender === 'object') m.sender = m.sender._id || m.sender.id || m.sender
-    if (m.recipient && typeof m.recipient === 'object') m.recipient = m.recipient._id || m.recipient.id || m.recipient
-    if (m.conversation && typeof m.conversation === 'object') m.conversation = m.conversation._id || m.conversation.id || m.conversation
-    if (m.group && typeof m.group === 'object') m.group = m.group._id || m.group.id || m.group
-    return m
-  }
+    const m = { ...msg };
+    if (m.sender && typeof m.sender === 'object') m.sender = m.sender._id || m.sender.id || m.sender;
+    if (m.recipient && typeof m.recipient === 'object') m.recipient = m.recipient._id || m.recipient.id || m.recipient;
+    if (m.conversation && typeof m.conversation === 'object') m.conversation = m.conversation._id || m.conversation.id || m.conversation;
+    if (m.group && typeof m.group === 'object') m.group = m.group._id || m.group.id || m.group;
+    return m;
+  };
 
-  const normalizedItems = itemsAscending.map(normalize)
+  const normalizedItems = itemsAscending.map(normalize);
 
   if (p === 1) {
-    messages.value = normalizedItems
-    await nextTick()
-    scrollBottom()
+    messages.value = normalizedItems;
+    await nextTick();
+    scrollBottom();
 
     try {
       if (props.peer && props.peer._id) {
-        let convId = null
+        let convId = null;
         if (props.peer.isGroup) {
-          convId = props.peer._id
+          convId = props.peer._id;
         } else {
           try {
-            const conv = await api('/api/conversations/direct', { method: 'POST', token: props.token, body: { participantId: props.peer._id } })
-            convId = conv && conv._id ? conv._id : null
+            const conv = await api('/api/conversations/direct', { method: 'POST', token: props.token, body: { participantId: props.peer._id } });
+            convId = conv && conv._id ? conv._id : null;
           } catch (err) {
-            console.warn('could not ensure direct conversation id', err && err.message)
+            console.warn('could not ensure direct conversation id', err && err.message);
           }
         }
 
         if (convId) {
-          await api(`/api/conversations/${convId}/mark-read`, { method: 'POST', token: props.token })
+          await api(`/api/conversations/${convId}/mark-read`, { method: 'POST', token: props.token });
         }
       }
     } catch (e) {
-      console.warn('mark-read failed', e && e.message)
+      console.warn('mark-read failed', e && e.message);
     }
   } else {
-    const el = listRef.value
-    const prev = el ? el.scrollHeight : 0
-    messages.value = [...normalizedItems, ...messages.value]
-    await nextTick()
-    if (el) el.scrollTop = el.scrollHeight - prev
+    const el = listRef.value;
+    const prev = el ? el.scrollHeight : 0;
+    messages.value = [...normalizedItems, ...messages.value];
+    await nextTick();
+    if (el) el.scrollTop = el.scrollHeight - prev;
   }
 
-  if (raw.length < 30) hasMore.value = false
+  if (raw.length < 30) hasMore.value = false;
 }
 
 watch(() => props.peer?._id, async (id) => {
-  currentPeerId.value = id ? String(id) : null
-  page.value = 1
-  hasMore.value = true
-  messages.value = []
-  loadedFor.value = null
+  currentPeerId.value = id ? String(id) : null;
+  page.value = 1;
+  hasMore.value = true;
+  messages.value = [];
+  loadedFor.value = null;
   // refresh the online count for groups
-  await loadGroupStatus()
-})
+  await loadGroupStatus();
+});
 
 watchEffect(async () => {
   if (currentPeerId.value && loadedFor.value !== currentPeerId.value) {
-    await load(1)
-    loadedFor.value = currentPeerId.value
+    await load(1);
+    loadedFor.value = currentPeerId.value;
   }
-})
+});
 
 function onScroll(){
-  const el = listRef.value
-  if (!el) return
+  const el = listRef.value;
+  if (!el) return;
   if (el.scrollTop < 50 && hasMore.value){
-    const next = page.value + 1
-    page.value = next
-    load(next)
+    const next = page.value + 1;
+    page.value = next;
+    load(next);
   }
 }
 
 onMounted(() => {
-  const el = listRef.value
-  if (el) el.addEventListener('scroll', onScroll)
+  const el = listRef.value;
+  if (el) el.addEventListener('scroll', onScroll);
   if (props.peer?._id) {
-    currentPeerId.value = String(props.peer._id)
-    loadedFor.value = null
+    currentPeerId.value = String(props.peer._id);
+    loadedFor.value = null;
   }
-  scrollBottom()
-})
+  scrollBottom();
+});
 onUnmounted(() => {
-  const el = listRef.value
-  if (el) el.removeEventListener('scroll', onScroll)
-})
+  const el = listRef.value;
+  if (el) el.removeEventListener('scroll', onScroll);
+});
 
 function onMsg(message){
   console.log('[ChatPane] Received message:new event', { 
@@ -348,64 +410,64 @@ function onMsg(message){
     recipient: message.recipient,
     currentPeer: props.peer,
     peerKeys: Object.keys(props.peer || {})
-  })
+  });
   
   // Check if message belongs to current conversation
   if (!props.peer) {
-    console.log('[ChatPane] No peer, ignoring message')
-    return
+    console.log('[ChatPane] No peer, ignoring message');
+    return;
   }
   
   // Handle both sender as object or string
-  const sId = message.sender?._id ? String(message.sender._id) : String(message.sender)
-  const convId = message.conversation ? String(message.conversation) : null
-  const rId = message.recipient ? String(message.recipient) : null
+  const sId = message.sender?._id ? String(message.sender._id) : String(message.sender);
+  const convId = message.conversation ? String(message.conversation) : null;
+  const rId = message.recipient ? String(message.recipient) : null;
   
   // For conversations, match by conversationId
   // For direct messages without conversation, match by sender/recipient
-  let matches = false
+  let matches = false;
   
   if (props.peer.conversationId && convId) {
     // Match by conversation ID
-    matches = String(props.peer.conversationId) === convId
+    matches = String(props.peer.conversationId) === convId;
     console.log('[ChatPane] Checking by conversationId', {
       peerConvId: String(props.peer.conversationId),
       messageConvId: convId,
       matches
-    })
+    });
   } else if (props.peer._id) {
     // Match by peer ID (sender or recipient)
-    const peerId = String(props.peer._id)
-    matches = sId === peerId || rId === peerId || (convId && convId === peerId)
+    const peerId = String(props.peer._id);
+    matches = sId === peerId || rId === peerId || (convId && convId === peerId);
     console.log('[ChatPane] Checking by peer ID', {
       peerId,
       senderId: sId,
       recipientId: rId,
       convId,
       matches
-    })
+    });
   }
   
-  console.log('[ChatPane] Final match result:', matches)
+  console.log('[ChatPane] Final match result:', matches);
   
   if (matches) {
-    const stick = atBottom() || sId === String(props.me._id)
+    const stick = atBottom() || sId === String(props.me._id);
     if (message.clientId) {
-      const idx = messages.value.findIndex(x => x.clientId && x.clientId === message.clientId)
-      if (idx !== -1) messages.value.splice(idx, 1)
+      const idx = messages.value.findIndex(x => x.clientId && x.clientId === message.clientId);
+      if (idx !== -1) messages.value.splice(idx, 1);
     }
     if (!messages.value.find(x => String(x._id) === String(message._id))) {
-      messages.value = [...messages.value, message]
-      console.log('[ChatPane] Message added to list', { messageId: message._id })
-      if (stick) scrollBottom()
+      messages.value = [...messages.value, message];
+      console.log('[ChatPane] Message added to list', { messageId: message._id });
+      if (stick) scrollBottom();
     } else {
-      console.log('[ChatPane] Message already exists in list', { messageId: message._id })
+      console.log('[ChatPane] Message already exists in list', { messageId: message._id });
     }
   }
 }
 
-function onTyping(evt){ if (evt.from === currentPeerId.value) typing.value = true }
-function onTypingStopped(evt){ if (evt.from === currentPeerId.value) typing.value = false }
+function onTyping(evt){ if (evt.from === currentPeerId.value) typing.value = true; }
+function onTypingStopped(evt){ if (evt.from === currentPeerId.value) typing.value = false; }
 
 function onMessageUpdated(data) {
   const msg = messages.value.find(m => String(m._id) === String(data._id));
@@ -447,53 +509,54 @@ function onReactionUpdated(data) {
 }
 
 watch(() => props.socket, (s) => {
-  if (!s) return
-  const hMsg = (m) => onMsg(m)
-  const hTyping = (e) => onTyping(e)
-  const hTypingStop = (e) => onTypingStopped(e)
-  const hMsgUpdated = (data) => onMessageUpdated(data)
-  const hReaction = (data) => onReactionUpdated(data)
-  s.on('message:new', hMsg)
-  s.on('message:updated', hMsgUpdated)
-  s.on('typing', hTyping)
-  s.on('typing-stopped', hTypingStop)
-  s.on('reaction:updated', hReaction)
+  if (!s) return;
+  const hMsg = (m) => onMsg(m);
+  const hTyping = (e) => onTyping(e);
+  const hTypingStop = (e) => onTypingStopped(e);
+  const hMsgUpdated = (data) => onMessageUpdated(data);
+  const hReaction = (data) => onReactionUpdated(data);
+  s.on('message:new', hMsg);
+  s.on('message:updated', hMsgUpdated);
+  s.on('typing', hTyping);
+  s.on('typing-stopped', hTypingStop);
+  s.on('reaction:updated', hReaction);
   const hStatus = (payload) => {
     // payload: { userId, status }
-    if (props.peer && props.peer.isGroup) loadGroupStatus().catch(()=>{})
-  }
-  s.on('user-status', hStatus)
+    if (props.peer && props.peer.isGroup) loadGroupStatus().catch(()=>{});
+  };
+  s.on('user-status', hStatus);
   return () => {
-    s.off('message:new', hMsg)
-    s.off('message:updated', hMsgUpdated)
-    s.off('typing', hTyping)
-    s.off('typing-stopped', hTypingStop)
-    s.off('reaction:updated', hReaction)
-    s.off('user-status', hStatus)
-  }
-}, { immediate: true })
+    s.off('message:new', hMsg);
+    s.off('message:updated', hMsgUpdated);
+    s.off('typing', hTyping);
+    s.off('typing-stopped', hTypingStop);
+    s.off('reaction:updated', hReaction);
+    s.off('user-status', hStatus);
+  };
+}, { immediate: true });
 
 // Group modal handlers
 function onGroupUpdated(updated) {
   if (updated && updated._id && props.peer && props.peer._id && String(updated._id) === String(props.peer._id)) {
-    props.peer.username = updated.name
+    // eslint-disable-next-line vue/no-mutating-props
+    props.peer.username = updated.name;
   }
-  showGroupModal.value = false
+  showGroupModal.value = false;
 }
 
 function onGroupLeft(groupId) {
   if (props.peer && props.peer._id && String(props.peer._id) === String(groupId)) {
-    try { props.socket && props.socket.emit('left-group', { groupId }) } catch {}
+    try { props.socket && props.socket.emit('left-group', { groupId }); } catch (_err) { /* ignored */ }
   }
 }
 
 function onMemberAdded(user) {
   // close modal and optionally refresh group data
-  showAddMembersModal.value = false
+  showAddMembersModal.value = false;
 }
 
 async function send(content){
-  const clientId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now())
+  const clientId = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
   const local = {
     _id: `local-${clientId}`,
     clientId,
@@ -505,22 +568,22 @@ async function send(content){
     edited: false,
     deleted: false,
     replyTo: replyingTo.value ? { content: replyingTo.value.content } : null
-  }
-  messages.value = [...messages.value, local]
-  await nextTick()
-  scrollBottom()
+  };
+  messages.value = [...messages.value, local];
+  await nextTick();
+  scrollBottom();
   
   // Clear reply
-  const replyToId = replyingTo.value?._id || null
-  replyingTo.value = null
+  const replyToId = replyingTo.value?._id || null;
+  replyingTo.value = null;
   
   try {
     const body = props.peer.isGroup 
       ? { conversation_id: props.peer._id, content, clientId, replyTo: replyToId } 
-      : { recipient_id: props.peer._id, content, clientId, replyTo: replyToId }
-    await api(`/api/messages`, { method: 'POST', token: props.token, body })
+      : { recipient_id: props.peer._id, content, clientId, replyTo: replyToId };
+    await api('/api/messages', { method: 'POST', token: props.token, body });
   } catch(e) {
-    toast.error('Erreur lors de l\'envoi du message')
+    toast.error('Erreur lors de l\'envoi du message');
   }
 }
 
@@ -593,7 +656,7 @@ async function sendFile(file){
       ? { ...common, conversation_id: props.peer._id } 
       : { ...common, recipient_id: props.peer._id };
 
-    await api(`/api/messages`, { method: 'POST', token: props.token, body });
+    await api('/api/messages', { method: 'POST', token: props.token, body });
     
     if (composerRef.value) {
       composerRef.value.setUploadProgress(100);
@@ -617,59 +680,59 @@ async function sendFile(file){
 
 function typingPing(){
   if (props.socket && props.socket.connected) {
-    props.socket.emit('typing', { to: props.peer._id })
+    props.socket.emit('typing', { to: props.peer._id });
   }
 }
 
-function toggleMenu() { showMenu.value = !showMenu.value }
+function toggleMenu() { showMenu.value = !showMenu.value; }
 
 function onAvatarClick() {
-  if (props && props.peer && props.peer.isGroup) showGroupModal.value = true
+  if (props && props.peer && props.peer.isGroup) showGroupModal.value = true;
 }
 
 async function handleAddContact() {
-  showMenu.value = false
+  showMenu.value = false;
   try {
-    await addContact(props.token, props.peer._id)
-    toast.success('Contact ajouté avec succès')
+    await addContact(props.token, props.peer._id);
+    toast.success('Contact ajouté avec succès');
   } catch (e) {
-    toast.error('Erreur: ' + e.message)
+    toast.error('Erreur: ' + e.message);
   }
 }
 
 async function handleBlockContact() {
-  showMenu.value = false
-  if (!confirm(`Bloquer ${props.peer.username} ?`)) return
+  showMenu.value = false;
+  if (!confirm(`Bloquer ${props.peer.username} ?`)) return;
   try {
-    await apiBlockContact(props.token, props.peer._id)
-    toast.success('Contact bloqué')
+    await apiBlockContact(props.token, props.peer._id);
+    toast.success('Contact bloqué');
   } catch (e) {
-    toast.error('Erreur: ' + e.message)
+    toast.error('Erreur: ' + e.message);
   }
 }
 
 async function handleRemoveContact() {
-  showMenu.value = false
-  if (!confirm(`Supprimer ${props.peer.username} de vos contacts ?`)) return
+  showMenu.value = false;
+  if (!confirm(`Supprimer ${props.peer.username} de vos contacts ?`)) return;
   try {
-    await apiRemoveContact(props.token, props.peer._id)
-    toast.success('Contact supprimé')
+    await apiRemoveContact(props.token, props.peer._id);
+    toast.success('Contact supprimé');
   } catch (e) {
-    toast.error('Erreur: ' + e.message)
+    toast.error('Erreur: ' + e.message);
   }
 }
 
 function handleChangeBackground() {
-  showMenu.value = false
+  showMenu.value = false;
   loadAvailableImages().then(() => {
-    showColorPicker.value = true
-  })
+    showColorPicker.value = true;
+  });
 }
 
 async function selectColor(color) {
   if (!conversationId.value) {
-    toast.error('Impossible de changer la couleur pour cette conversation')
-    return
+    toast.error('Impossible de changer la couleur pour cette conversation');
+    return;
   }
   
   try {
@@ -677,20 +740,20 @@ async function selectColor(color) {
       method: 'POST',
       token: props.token,
       body: { color }
-    })
-    bgColor.value = color
-    bgImage.value = ''
-    showColorPicker.value = false
-    toast.success('Couleur de fond modifiée')
+    });
+    bgColor.value = color;
+    bgImage.value = '';
+    showColorPicker.value = false;
+    toast.success('Couleur de fond modifiée');
   } catch (e) {
-    toast.error('Erreur: ' + e.message)
+    toast.error('Erreur: ' + e.message);
   }
 }
 
 async function selectImage(image) {
   if (!conversationId.value) {
-    toast.error('Impossible de changer l\'image pour cette conversation')
-    return
+    toast.error('Impossible de changer l\'image pour cette conversation');
+    return;
   }
   
   try {
@@ -698,13 +761,13 @@ async function selectImage(image) {
       method: 'POST',
       token: props.token,
       body: { image }
-    })
-    bgImage.value = image
-    bgColor.value = '#f9fafb'
-    showColorPicker.value = false
-    toast.success('Image de fond modifiée')
+    });
+    bgImage.value = image;
+    bgColor.value = '#f9fafb';
+    showColorPicker.value = false;
+    toast.success('Image de fond modifiée');
   } catch (e) {
-    toast.error('Erreur: ' + e.message)
+    toast.error('Erreur: ' + e.message);
   }
 }
 
@@ -791,10 +854,10 @@ async function handleReaction({ messageId, emoji }) {
 onMounted(() => {
   const closeMenu = (e) => {
     if (showMenu.value && !e.target.closest('button')) {
-      showMenu.value = false
+      showMenu.value = false;
     }
-  }
-  document.addEventListener('click', closeMenu)
-  return () => document.removeEventListener('click', closeMenu)
-})
+  };
+  document.addEventListener('click', closeMenu);
+  return () => document.removeEventListener('click', closeMenu);
+});
 </script>

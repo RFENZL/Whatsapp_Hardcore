@@ -1,9 +1,9 @@
-import { createApp } from "vue"
-import * as Sentry from "@sentry/vue"
-import App from "./App.vue"
-import "./index.css"
+import { createApp } from 'vue';
+import * as Sentry from '@sentry/vue';
+import App from './App.vue';
+import './index.css';
 
-const app = createApp(App)
+const app = createApp(App);
 
 // Configuration Sentry (uniquement en production)
 if (import.meta.env.PROD && import.meta.env.VITE_SENTRY_DSN) {
@@ -24,8 +24,8 @@ if (import.meta.env.PROD && import.meta.env.VITE_SENTRY_DSN) {
     replaysOnErrorSampleRate: 1.0, // 100% des sessions avec erreurs
     // Environnement
     environment: import.meta.env.MODE,
-  })
+  });
 }
 
-app.mount("#app")
+app.mount('#app');
 

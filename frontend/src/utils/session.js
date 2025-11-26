@@ -1,5 +1,5 @@
-import { ref, onMounted, onUnmounted } from 'vue'
-import logger from './logger.js'
+import { ref, onMounted, onUnmounted } from 'vue';
+import logger from './logger.js';
 
 /**
  * Composable pour gérer le timeout de session avec détection d'activité
@@ -15,70 +15,70 @@ export function useSessionTimeout(options = {}) {
     warningTime = 2 * 60 * 1000, // 2 minutes avant timeout
     onTimeout = () => {},
     onWarning = () => {}
-  } = options
+  } = options;
 
-  const lastActivity = ref(Date.now())
-  const isWarningShown = ref(false)
-  let activityTimer = null
-  let warningTimer = null
+  const lastActivity = ref(Date.now());
+  const isWarningShown = ref(false);
+  let activityTimer = null;
+  let warningTimer = null;
 
   // Events qui comptent comme activité
-  const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click']
+  const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
 
   function updateActivity() {
-    lastActivity.value = Date.now()
-    isWarningShown.value = false
-    resetTimers()
+    lastActivity.value = Date.now();
+    isWarningShown.value = false;
+    resetTimers();
   }
 
   function resetTimers() {
-    if (activityTimer) clearTimeout(activityTimer)
-    if (warningTimer) clearTimeout(warningTimer)
+    if (activityTimer) clearTimeout(activityTimer);
+    if (warningTimer) clearTimeout(warningTimer);
 
     // Timer pour le warning
     warningTimer = setTimeout(() => {
       if (!isWarningShown.value) {
-        isWarningShown.value = true
-        logger.warn('Session timeout warning')
-        onWarning()
+        isWarningShown.value = true;
+        logger.warn('Session timeout warning');
+        onWarning();
       }
-    }, timeout - warningTime)
+    }, timeout - warningTime);
 
     // Timer pour le timeout
     activityTimer = setTimeout(() => {
-      logger.warn('Session timeout - logging out')
-      onTimeout()
-    }, timeout)
+      logger.warn('Session timeout - logging out');
+      onTimeout();
+    }, timeout);
   }
 
   function start() {
-    logger.info('Session timeout monitoring started', { timeout: timeout / 1000 + 's' })
+    logger.info('Session timeout monitoring started', { timeout: timeout / 1000 + 's' });
     
     // Attacher les listeners
     activityEvents.forEach(event => {
-      window.addEventListener(event, updateActivity, { passive: true })
-    })
+      window.addEventListener(event, updateActivity, { passive: true });
+    });
 
     // Démarrer les timers
-    resetTimers()
+    resetTimers();
   }
 
   function stop() {
-    logger.info('Session timeout monitoring stopped')
+    logger.info('Session timeout monitoring stopped');
     
     // Retirer les listeners
     activityEvents.forEach(event => {
-      window.removeEventListener(event, updateActivity)
-    })
+      window.removeEventListener(event, updateActivity);
+    });
 
     // Clear timers
-    if (activityTimer) clearTimeout(activityTimer)
-    if (warningTimer) clearTimeout(warningTimer)
+    if (activityTimer) clearTimeout(activityTimer);
+    if (warningTimer) clearTimeout(warningTimer);
   }
 
   // Auto-start/stop avec le lifecycle
-  onMounted(() => start())
-  onUnmounted(() => stop())
+  onMounted(() => start());
+  onUnmounted(() => stop());
 
   return {
     lastActivity,
@@ -86,56 +86,56 @@ export function useSessionTimeout(options = {}) {
     start,
     stop,
     updateActivity
-  }
+  };
 }
 
 /**
  * Composable pour synchroniser l'état de session entre onglets
  */
 export function useMultiTabSync() {
-  const channel = ref(null)
+  const channel = ref(null);
 
   function init(onLogout, onLogin) {
     if (typeof BroadcastChannel === 'undefined') {
-      logger.warn('BroadcastChannel not supported')
-      return
+      logger.warn('BroadcastChannel not supported');
+      return;
     }
 
-    channel.value = new BroadcastChannel('whatsapp_session')
+    channel.value = new BroadcastChannel('whatsapp_session');
 
     channel.value.onmessage = (event) => {
-      logger.info('Received message from another tab', { type: event.data.type })
+      logger.info('Received message from another tab', { type: event.data.type });
       
       if (event.data.type === 'logout') {
-        onLogout()
+        onLogout();
       } else if (event.data.type === 'login') {
-        onLogin()
+        onLogin();
       }
-    }
+    };
 
-    logger.info('Multi-tab sync initialized')
+    logger.info('Multi-tab sync initialized');
   }
 
   function broadcast(type, data = {}) {
     if (channel.value) {
-      channel.value.postMessage({ type, ...data })
-      logger.debug('Broadcasted message to other tabs', { type })
+      channel.value.postMessage({ type, ...data });
+      logger.debug('Broadcasted message to other tabs', { type });
     }
   }
 
   function destroy() {
     if (channel.value) {
-      channel.value.close()
-      channel.value = null
-      logger.info('Multi-tab sync destroyed')
+      channel.value.close();
+      channel.value = null;
+      logger.info('Multi-tab sync destroyed');
     }
   }
 
-  onUnmounted(() => destroy())
+  onUnmounted(() => destroy());
 
   return {
     init,
     broadcast,
     destroy
-  }
+  };
 }

@@ -19,13 +19,17 @@
                 <span v-else class="text-2xl">ℹ</span>
               </div>
               <div class="ml-3 w-0 flex-1 pt-0.5">
-                <p v-if="toast.title" class="text-sm font-medium text-gray-900">{{ toast.title }}</p>
-                <p class="text-sm text-gray-500" :class="{'mt-1': toast.title}">{{ toast.message }}</p>
+                <p v-if="toast.title" class="text-sm font-medium text-gray-900">
+                  {{ toast.title }}
+                </p>
+                <p class="text-sm text-gray-500" :class="{'mt-1': toast.title}">
+                  {{ toast.message }}
+                </p>
               </div>
               <div class="ml-4 flex-shrink-0 flex">
                 <button
-                  @click="remove(toast.id)"
                   class="bg-white rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none"
+                  @click="remove(toast.id)"
                 >
                   <span class="sr-only">Fermer</span>
                   <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -55,45 +59,45 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref } from 'vue';
 
-const toasts = ref([])
-let nextId = 1
+const toasts = ref([]);
+let nextId = 1;
 
 function add({ message, title, type = 'info', duration = 5000 }) {
-  const id = nextId++
-  const toast = { id, message, title, type, progress: 100 }
-  toasts.value.push(toast)
+  const id = nextId++;
+  const toast = { id, message, title, type, progress: 100 };
+  toasts.value.push(toast);
   
   // Animer la progress bar
-  const startTime = Date.now()
+  const startTime = Date.now();
   const interval = setInterval(() => {
-    const elapsed = Date.now() - startTime
-    toast.progress = Math.max(0, 100 - (elapsed / duration * 100))
+    const elapsed = Date.now() - startTime;
+    toast.progress = Math.max(0, 100 - (elapsed / duration * 100));
     
     if (toast.progress <= 0) {
-      clearInterval(interval)
+      clearInterval(interval);
     }
-  }, 50)
+  }, 50);
   
   // Auto-remove après duration
   setTimeout(() => {
-    clearInterval(interval)
-    remove(id)
-  }, duration)
+    clearInterval(interval);
+    remove(id);
+  }, duration);
   
-  return id
+  return id;
 }
 
 function remove(id) {
-  const index = toasts.value.findIndex(t => t.id === id)
+  const index = toasts.value.findIndex(t => t.id === id);
   if (index > -1) {
-    toasts.value.splice(index, 1)
+    toasts.value.splice(index, 1);
   }
 }
 
 // Exposer les méthodes pour utilisation externe
-defineExpose({ add, remove })
+defineExpose({ add, remove });
 
 // API globale pour faciliter l'utilisation
 if (typeof window !== 'undefined') {
@@ -102,7 +106,7 @@ if (typeof window !== 'undefined') {
     error: (message, title) => add({ message, title, type: 'error' }),
     warning: (message, title) => add({ message, title, type: 'warning' }),
     info: (message, title) => add({ message, title, type: 'info' }),
-  }
+  };
 }
 </script>
 
