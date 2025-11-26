@@ -1,5 +1,8 @@
 require('dotenv').config();
 const http = require('http');
+const https = require('https');
+const fs = require('fs');
+const path = require('path');
 const mongoose = require('mongoose');
 const { Server } = require('socket.io');
 const { createAdapter } = require('@socket.io/redis-adapter');
@@ -18,13 +21,43 @@ const initNotificationsNamespace = require('./socket/notificationsNamespace');
 const PORT = process.env.PORT || 4000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/tpchat';
 const USE_REDIS = process.env.USE_REDIS === 'true';
+const USE_HTTPS = process.env.USE_HTTPS !== 'false'; // HTTPS activé par défaut
 
 async function start() {
   try {
     await mongoose.connect(MONGODB_URI, { dbName: 'tpchat' });
     logger.info('Connected to MongoDB', { uri: MONGODB_URI.replace(/\/\/.*@/, '//*****@') });
     
-    const server = http.createServer(app);
+    // Créer le serveur HTTPS ou HTTP selon la configuration
+    let server;
+    if (USE_HTTPS) {
+      try {
+        const certPath = process.env.SSL_CERT_PATH || path.join(__dirname, '..', 'certs', 'localhost-cert.pem');
+        const keyPath = process.env.SSL_KEY_PATH || path.join(__dirname, '..', 'certs', 'localhost-key.pem');
+        
+        const httpsOptions = {
+          cert: fs.readFileSync(certPath),
+          key: fs.readFileSync(keyPath)
+        };
+        
+        server = https.createServer(httpsOptions, app);
+        logger.info('HTTPS server created with SSL certificates', { 
+          certPath: certPath.replace(/.*certs/, '...certs'),
+          keyPath: keyPath.replace(/.*certs/, '...certs')
+        });
+      } catch (err) {
+        logger.error('Failed to load SSL certificates, falling back to HTTP', { 
+          error: err.message,
+          hint: 'Run: openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout backend/certs/localhost-key.pem -out backend/certs/localhost-cert.pem'
+        });
+        server = http.createServer(app);
+      }
+    } else {
+      server = http.createServer(app);
+      logger.warn('HTTP server created (HTTPS disabled)', { 
+        warning: 'WebSockets will use WS instead of WSS. Not recommended for production.'
+      });
+    }
     
     // Configuration avancée de Socket.IO
     const io = new Server(server, {
@@ -121,11 +154,14 @@ async function start() {
     // Démarrer le job de nettoyage des messages expirés (toutes les heures)
     startCleanupJob(60 * 60 * 1000);
     
+    const protocol = USE_HTTPS ? 'https' : 'http';
     server.listen(PORT, () => {
-      logger.info(`Server started on http://localhost:${PORT}`, { 
+      logger.info(`Server started on ${protocol}://localhost:${PORT}`, { 
         port: PORT, 
         env: process.env.NODE_ENV || 'development',
-        redis: USE_REDIS ? 'enabled' : 'disabled'
+        redis: USE_REDIS ? 'enabled' : 'disabled',
+        https: USE_HTTPS ? 'enabled (WSS)' : 'disabled (WS)',
+        websocket: USE_HTTPS ? 'wss://localhost:' + PORT : 'ws://localhost:' + PORT
       });
     });
   } catch (err) {
