@@ -20,38 +20,38 @@
   </div>
 </template>
 <script setup>
-import { computed, ref } from "vue"
+import { computed, ref } from 'vue';
 
-const props = defineProps({ user: Object, size: { type: Number, default: 40 } })
-const initials = computed(() => (props.user?.username || 'U').slice(0,2).toUpperCase())
+const props = defineProps({ user: Object, size: { type: Number, default: 40 } });
+const initials = computed(() => (props.user?.username || 'U').slice(0,2).toUpperCase());
 
 // Compute full avatar URL
 const avatarUrl = computed(() => {
-  const avatar = props.user?.avatar
-  if (!avatar) return null
+  const avatar = props.user?.avatar;
+  if (!avatar) return null;
   
   // Get API_BASE directly from import.meta.env with fallback
-  const apiBase = import.meta?.env?.VITE_API_BASE || "http://localhost:4000"
+  const apiBase = import.meta?.env?.VITE_API_BASE || 'http://localhost:4000';
   
   // If it's already a full URL (starts with http:// or https://), return as is
   if (avatar.startsWith('http://') || avatar.startsWith('https://')) {
-    return avatar
+    return avatar;
   }
   
   // If it's a relative path (starts with /), prepend the API_BASE
   if (avatar.startsWith('/')) {
-    return apiBase + avatar
+    return apiBase + avatar;
   }
   
   // Otherwise, return as is
-  return avatar
-})
+  return avatar;
+});
 
-const showImage = ref(true)
+const showImage = ref(true);
 
 // Handle image loading errors by hiding the image
 const handleImageError = (e) => {
-  showImage.value = false
-  e.target.style.display = 'none'
-}
+  showImage.value = false;
+  e.target.style.display = 'none';
+};
 </script>

@@ -7,8 +7,12 @@
     >
       <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden">
         <div class="p-4 border-b flex items-center justify-between">
-          <h3 class="text-lg font-semibold">Prévisualisation</h3>
-          <button @click="cancel" class="text-gray-500 hover:text-gray-700">✕</button>
+          <h3 class="text-lg font-semibold">
+            Prévisualisation
+          </h3>
+          <button class="text-gray-500 hover:text-gray-700" @click="cancel">
+            ✕
+          </button>
         </div>
         
         <div class="p-4 flex items-center justify-center bg-gray-50" style="max-height: 60vh;">
@@ -25,9 +29,15 @@
             class="max-w-full max-h-full rounded"
           ></video>
           <div v-else class="text-center">
-            <div class="text-4xl mb-4">📎</div>
-            <div class="font-medium">{{ file.name }}</div>
-            <div class="text-sm text-gray-500">{{ formatSize(file.size) }}</div>
+            <div class="text-4xl mb-4">
+              📎
+            </div>
+            <div class="font-medium">
+              {{ file.name }}
+            </div>
+            <div class="text-sm text-gray-500">
+              {{ formatSize(file.size) }}
+            </div>
           </div>
         </div>
         
@@ -41,14 +51,14 @@
           
           <div class="flex gap-2 justify-end">
             <button 
-              @click="cancel"
               class="px-4 py-2 border rounded-lg hover:bg-gray-50"
+              @click="cancel"
             >
               Annuler
             </button>
             <button 
-              @click="confirm"
               class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600"
+              @click="confirm"
             >
               Envoyer
             </button>

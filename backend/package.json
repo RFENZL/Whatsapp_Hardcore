@@ -14,7 +14,9 @@
     "test:middleware": "cross-env NODE_ENV=test mocha --timeout 10000 \"test/middleware.test.js\"",
     "coverage": "cross-env NODE_ENV=test nyc -r text -r html -r lcov npm run test",
     "serve:dist": "node src/server.js",
-    "test:monitoring": "node test-monitoring.js"
+    "test:monitoring": "node test-monitoring.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "dependencies": {
     "@sentry/node": "^7.120.4",
@@ -43,8 +45,12 @@
     "winston-daily-rotate-file": "^4.7.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.1",
     "chai": "^5.3.3",
     "cross-env": "^10.1.0",
+    "eslint": "^9.39.1",
+    "eslint-plugin-mocha": "^11.2.0",
+    "eslint-plugin-n": "^17.23.1",
     "mocha": "^11.7.4",
     "mongodb-memory-server": "^10.3.0",
     "nodemon": "^3.1.7",

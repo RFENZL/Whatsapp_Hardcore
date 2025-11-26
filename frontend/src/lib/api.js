@@ -1,4 +1,4 @@
-const API_BASE = import.meta?.env?.VITE_API_BASE || "";
+const API_BASE = import.meta?.env?.VITE_API_BASE || '';
 
 // Callback pour gérer les erreurs 401 (token expiré)
 let on401Callback = null;
@@ -6,10 +6,10 @@ export function setOn401Handler(callback) {
   on401Callback = callback;
 }
 
-export async function api(path, { method = "GET", token, body } = {}) {
-  const url = (API_BASE || "") + path; // path doit commencer par /
+export async function api(path, { method = 'GET', token, body } = {}) {
+  const url = (API_BASE || '') + path; // path doit commencer par /
   const headers = {
-    "Content-Type": "application/json"
+    'Content-Type': 'application/json'
   };
   
   // Support optionnel du token via Authorization header pour compatibilité
@@ -44,8 +44,8 @@ export async function api(path, { method = "GET", token, body } = {}) {
     return null;
   }
 
-  const ct = res.headers.get("content-type") || "";
-  const isJSON = ct.includes("application/json");
+  const ct = res.headers.get('content-type') || '';
+  const isJSON = ct.includes('application/json');
 
   // Essaie JSON, sinon texte
   let data;
@@ -58,7 +58,7 @@ export async function api(path, { method = "GET", token, body } = {}) {
   if (!res.ok) {
     const msg = isJSON
       ? (data && (data.error?.message || data.error || data.message)) || `${res.status} ${res.statusText}`
-      : (typeof data === "string" && data) || `${res.status} ${res.statusText}`;
+      : (typeof data === 'string' && data) || `${res.status} ${res.statusText}`;
     throw new Error(msg);
   }
 
@@ -70,18 +70,18 @@ export async function uploadFile(fileOrToken, maybeFile) {
   const file = maybeFile || fileOrToken;
   const token = maybeFile ? fileOrToken : null;
   
-  const url = (API_BASE || "") + "/api/upload";
+  const url = (API_BASE || '') + '/api/upload';
   const formData = new FormData();
-  formData.append("file", file);
+  formData.append('file', file);
 
   const res = await fetch(url, {
-    method: "POST",
+    method: 'POST',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     credentials: 'include', // Envoyer les cookies
     body: formData
   });
 
-  const isJSON = res.headers.get("content-type")?.includes("application/json");
+  const isJSON = res.headers.get('content-type')?.includes('application/json');
   let data;
   try {
     data = isJSON ? await res.json() : await res.text();
@@ -92,7 +92,7 @@ export async function uploadFile(fileOrToken, maybeFile) {
   if (!res.ok) {
     const msg = isJSON
       ? (data && (data.error?.message || data.error || data.message)) || `${res.status} ${res.statusText}`
-      : (typeof data === "string" && data) || `${res.status} ${res.statusText}`;
+      : (typeof data === 'string' && data) || `${res.status} ${res.statusText}`;
     throw new Error(msg);
   }
 
@@ -101,37 +101,37 @@ export async function uploadFile(fileOrToken, maybeFile) {
 
 // === Gestion des contacts ===
 export async function getContacts(token) {
-  return api("/api/contacts", { token });
+  return api('/api/contacts', { token });
 }
 
 export async function addContact(token, contactId) {
-  return api("/api/contacts", { method: "POST", token, body: { contact_id: contactId } });
+  return api('/api/contacts', { method: 'POST', token, body: { contact_id: contactId } });
 }
 
 export async function removeContact(token, contactId) {
-  return api(`/api/contacts/${contactId}`, { method: "DELETE", token });
+  return api(`/api/contacts/${contactId}`, { method: 'DELETE', token });
 }
 
 export async function blockContact(token, contactId) {
-  return api(`/api/contacts/${contactId}/block`, { method: "POST", token });
+  return api(`/api/contacts/${contactId}/block`, { method: 'POST', token });
 }
 
 export async function unblockContact(token, contactId) {
-  return api(`/api/contacts/${contactId}/unblock`, { method: "POST", token });
+  return api(`/api/contacts/${contactId}/unblock`, { method: 'POST', token });
 }
 
 // === Gestion des sessions ===
 export async function getSessions(token) {
-  return api("/api/users/sessions", { token });
+  return api('/api/users/sessions', { token });
 }
 
 export async function deleteSession(token, sessionId) {
-  return api(`/api/users/sessions/${sessionId}`, { method: "DELETE", token });
+  return api(`/api/users/sessions/${sessionId}`, { method: 'DELETE', token });
 }
 
 // === Suppression de compte ===
 export async function deleteAccount(token) {
-  return api("/api/users/account", { method: "DELETE", token });
+  return api('/api/users/account', { method: 'DELETE', token });
 }
 
 // === Groups API ===

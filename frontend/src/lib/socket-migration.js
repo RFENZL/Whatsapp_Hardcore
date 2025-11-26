@@ -1,3 +1,4 @@
+/* eslint-disable */
 // Migration guide for frontend Socket.IO changes
 // This file demonstrates the changes needed in the frontend code
 

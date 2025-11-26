@@ -5,50 +5,83 @@
       <div class="flex items-center gap-3">
         <Avatar :user="me" />
         <div class="flex-1 min-w-0">
-          <div class="font-semibold truncate">{{ me.username }}</div>
-          <div class="text-xs text-gray-500 truncate">{{ me.email || 'Compte' }}</div>
+          <div class="font-semibold truncate">
+            {{ me.username }}
+          </div>
+          <div class="text-xs text-gray-500 truncate">
+            {{ me.email || 'Compte' }}
+          </div>
         </div>
-        <button @click="showAddContact = true" class="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full p-2 transition-colors" title="Ajouter un contact">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        <button class="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full p-2 transition-colors" title="Ajouter un contact" @click="showAddContact = true">
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 4v16m8-8H4"
+            />
           </svg>
         </button>
-        <button @click="$emit('openSettings')" class="text-gray-600 hover:text-gray-900" title="Paramètres">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        <button class="text-gray-600 hover:text-gray-900" title="Paramètres" @click="$emit('openSettings')">
+          <svg
+            class="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+            />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+            />
           </svg>
         </button>
       </div>
       <div class="mt-3">
-        <input class="w-full rounded-xl border bg-gray-50 px-3 py-2 text-sm" placeholder="Rechercher un contact" v-model="query" />
+        <input v-model="query" class="w-full rounded-xl border bg-gray-50 px-3 py-2 text-sm" placeholder="Rechercher un contact" />
       </div>
       <div class="mt-2 flex items-center justify-between gap-2">
-        <button @click="showCreateGroup = true" class="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg px-3 py-2 text-xs font-medium transition-colors">
+        <button class="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg px-3 py-2 text-xs font-medium transition-colors" @click="showCreateGroup = true">
           Créer un groupe
         </button>
-        <button @click="showArchived = !showArchived" class="text-xs text-gray-600 underline hover:text-gray-900">
+        <button class="text-xs text-gray-600 underline hover:text-gray-900" @click="showArchived = !showArchived">
           {{ showArchived ? 'Actives' : 'Archivées' }}
         </button>
-        <button @click="logout" class="text-xs text-gray-600 underline hover:text-gray-900">Déconnexion</button>
+        <button class="text-xs text-gray-600 underline hover:text-gray-900" @click="logout">
+          Déconnexion
+        </button>
       </div>
     </div>
 
     <ul class="divide-y max-h-[calc(100%-120px)] overflow-y-auto">
       <li v-if="allChats.length === 0" class="px-3 py-8 text-center text-gray-500">
-        <p class="text-sm">Aucune conversation</p>
-        <button @click="showAddContact = true" class="mt-2 text-emerald-600 hover:underline text-sm">
+        <p class="text-sm">
+          Aucune conversation
+        </p>
+        <button class="mt-2 text-emerald-600 hover:underline text-sm" @click="showAddContact = true">
           Commencer un nouveau chat
         </button>
       </li>
       <li
         v-for="u in filtered"
         :key="u._id"
-        @click="() => { clearUnreadFor(u._id); onSelectPeer(u) }"
         :class="[
           'px-3 py-3 cursor-pointer hover:bg-gray-50 transition-colors',
           currentPeer?._id===u._id ? 'bg-emerald-100' : (unread(u._id) ? 'bg-emerald-50' : '')
         ]"
+        @click="() => { clearUnreadFor(u._id); onSelectPeer(u) }"
       >
         <div class="flex items-center gap-3">
           <Avatar :user="u" />
@@ -56,12 +89,17 @@
             <div class="flex items-center gap-2">
               <button 
                 v-if="u.hasConversation" 
-                @click.stop="togglePin(u._id, u.conversationId)"
                 class="shrink-0 text-gray-400 hover:text-yellow-500 transition-colors"
                 :title="u.isPinned ? 'Désépingler' : 'Épingler'"
+                @click.stop="togglePin(u._id, u.conversationId)"
               >
-                <svg class="w-4 h-4" :class="{ 'text-yellow-500': u.isPinned }" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
+                <svg
+                  class="w-4 h-4"
+                  :class="{ 'text-yellow-500': u.isPinned }"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
                 </svg>
               </button>
               <span :class="['truncate', unread(u._id) ? 'font-semibold' : 'font-medium']">{{ u.username }}</span>
@@ -98,53 +136,69 @@
     <Teleport to="body">
       <div v-if="showAddContact" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100]" @click.self="closeAddContact">
         <div class="bg-white rounded-lg w-full max-w-md mx-4 p-6">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-lg font-semibold">Ajouter un contact</h2>
-          <button @click="closeAddContact" class="text-gray-500 hover:text-gray-700">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        
-        <div class="mb-4">
-          <input 
-            v-model="searchQuery" 
-            @input="searchUsers"
-            class="w-full rounded-lg border px-3 py-2 text-sm" 
-            placeholder="Rechercher un utilisateur..."
-          />
-        </div>
-
-        <div v-if="searching" class="text-center py-4 text-gray-500">
-          Recherche...
-        </div>
-
-        <div v-else-if="searchResults.length === 0 && searchQuery" class="text-center py-4 text-gray-500">
-          Aucun utilisateur trouvé
-        </div>
-
-        <ul v-else class="space-y-2 max-h-64 overflow-y-auto">
-          <li 
-            v-for="user in searchResults" 
-            :key="user._id"
-            class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg"
-          >
-            <Avatar :user="user" />
-            <div class="flex-1 min-w-0">
-              <div class="font-medium truncate">{{ user.username }}</div>
-              <div class="text-xs text-gray-500">{{ user.status || 'offline' }}</div>
-            </div>
-            <button 
-              @click="addContact(user._id)"
-              :disabled="addingContact === user._id"
-              class="px-3 py-1 bg-emerald-500 text-white text-sm rounded-lg hover:bg-emerald-600 disabled:opacity-50"
-            >
-              {{ addingContact === user._id ? 'Ajout...' : 'Ajouter' }}
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold">
+              Ajouter un contact
+            </h2>
+            <button class="text-gray-500 hover:text-gray-700" @click="closeAddContact">
+              <svg
+                class="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
             </button>
-          </li>
-        </ul>
-      </div>
+          </div>
+        
+          <div class="mb-4">
+            <input 
+              v-model="searchQuery" 
+              class="w-full rounded-lg border px-3 py-2 text-sm"
+              placeholder="Rechercher un utilisateur..." 
+              @input="searchUsers"
+            />
+          </div>
+
+          <div v-if="searching" class="text-center py-4 text-gray-500">
+            Recherche...
+          </div>
+
+          <div v-else-if="searchResults.length === 0 && searchQuery" class="text-center py-4 text-gray-500">
+            Aucun utilisateur trouvé
+          </div>
+
+          <ul v-else class="space-y-2 max-h-64 overflow-y-auto">
+            <li 
+              v-for="user in searchResults" 
+              :key="user._id"
+              class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg"
+            >
+              <Avatar :user="user" />
+              <div class="flex-1 min-w-0">
+                <div class="font-medium truncate">
+                  {{ user.username }}
+                </div>
+                <div class="text-xs text-gray-500">
+                  {{ user.status || 'offline' }}
+                </div>
+              </div>
+              <button 
+                :disabled="addingContact === user._id"
+                class="px-3 py-1 bg-emerald-500 text-white text-sm rounded-lg hover:bg-emerald-600 disabled:opacity-50"
+                @click="addContact(user._id)"
+              >
+                {{ addingContact === user._id ? 'Ajout...' : 'Ajouter' }}
+              </button>
+            </li>
+          </ul>
+        </div>
       </div>
     </Teleport>
   </aside>
@@ -161,48 +215,48 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from "vue"
-import Avatar from "./Avatar.vue"
-import CreateGroup from "./CreateGroup.vue"
-import { api } from "../lib/api.js"
+import { computed, onMounted, ref, watch } from 'vue';
+import Avatar from './Avatar.vue';
+import CreateGroup from './CreateGroup.vue';
+import { api } from '../lib/api.js';
 
-const props = defineProps({ me: Object, onSelectPeer: Function, currentPeer: Object, socket: Object })
+const props = defineProps({ me: Object, onSelectPeer: Function, currentPeer: Object, socket: Object });
 
-const contacts = ref([])
-const conversations = ref([])
-const convToGroup = ref({})
-const groupOnline = ref({})
-const query = ref("")
-const typingMap = ref({})
-const unreadMap = ref({})
+const contacts = ref([]);
+const conversations = ref([]);
+const convToGroup = ref({});
+const groupOnline = ref({});
+const query = ref('');
+const typingMap = ref({});
+const unreadMap = ref({});
 
 // Modal d'ajout de contact
-const showAddContact = ref(false)
-const showCreateGroup = ref(false)
-const searchQuery = ref("")
-const searchResults = ref([])
-const searching = ref(false)
-const addingContact = ref(null)
-let searchTimeout = null
+const showAddContact = ref(false);
+const showCreateGroup = ref(false);
+const searchQuery = ref('');
+const searchResults = ref([]);
+const searching = ref(false);
+const addingContact = ref(null);
+let searchTimeout = null;
 
-function isTyping(id){ return !!typingMap.value[id] }
-function unread(id){ return unreadMap.value[id] || 0 }
-function clearUnreadFor(id){ unreadMap.value = { ...unreadMap.value, [id]: 0 } }
+function isTyping(id){ return !!typingMap.value[id]; }
+function unread(id){ return unreadMap.value[id] || 0; }
+function clearUnreadFor(id){ unreadMap.value = { ...unreadMap.value, [id]: 0 }; }
 
 async function loadContacts() {
   try {
-    const data = await api(`/api/contacts`, { token: props.token })
-    contacts.value = data.map(c => c.contact).filter(u => u && u._id !== props.me._id)
+    const data = await api('/api/contacts', { token: props.token });
+    contacts.value = data.map(c => c.contact).filter(u => u && u._id !== props.me._id);
   } catch (e) {
-    console.error('Erreur chargement contacts:', e)
-    contacts.value = []
+    console.error('Erreur chargement contacts:', e);
+    contacts.value = [];
   }
 }
 
 async function loadConversations() {
   try {
     // Use /api/conversations which returns both direct and group conversations
-    const convos = await api(`/api/conversations`, { token: props.token })
+    const convos = await api('/api/conversations', { token: props.token });
     // Normalize to the previous shape: { otherUser, unread }
     const normalized = convos.map(c => {
       if (c.type === 'group' && c.group) {
@@ -213,10 +267,10 @@ async function loadConversations() {
           conversationId: c._id,
           isPinned: c.isPinned || false,
           raw: c
-        }
+        };
       } else {
         // direct: find the other participant
-        const other = (c.participants || []).find(p => String(p._id) !== String(props.me._id))
+        const other = (c.participants || []).find(p => String(p._id) !== String(props.me._id));
         return {
           _id: other ? String(other._id) : String(c._id),
           otherUser: other ? { _id: String(other._id), username: other.username, avatar: other.avatar, status: other.status } : { _id: String(c._id), username: 'Conversation' },
@@ -224,149 +278,149 @@ async function loadConversations() {
           conversationId: c._id,
           isPinned: c.isPinned || false,
           raw: c
-        }
+        };
       }
-    })
+    });
 
-    conversations.value = normalized
-    const map = {}
+    conversations.value = normalized;
+    const map = {};
     for (const c of normalized) {
-      map[c.otherUser._id] = c.unread || 0
+      map[c.otherUser._id] = c.unread || 0;
       // store mapping conversationId -> groupId when available
       if (c.raw && c.raw.type === 'group' && c.raw.group) {
-        convToGroup.value[String(c._id)] = String(c.raw.group._id || c.raw.group)
+        convToGroup.value[String(c._id)] = String(c.raw.group._id || c.raw.group);
       }
     }
-    unreadMap.value = map
+    unreadMap.value = map;
     // load online counts for groups
-    loadGroupCounts().catch(()=>{})
+    loadGroupCounts().catch(()=>{});
   } catch (e) {
-    console.error('Erreur chargement conversations:', e)
-    conversations.value = []
+    console.error('Erreur chargement conversations:', e);
+    conversations.value = [];
   }
 }
 
 async function loadGroupCounts(){
   try{
-    const map = {}
+    const map = {};
     for(const convo of conversations.value){
       if (convo.raw && convo.raw.type === 'group'){
-        const convId = String(convo._id)
+        const convId = String(convo._id);
         // Prefer using populated conversation participants (they are populated in the backend list)
         if (convo.raw.participants && convo.raw.participants.length > 0) {
-          const onlineSet = new Set()
+          const onlineSet = new Set();
           for (const p of convo.raw.participants) {
-            const id = String(p._id || p)
-            if (p && p.status === 'online') onlineSet.add(id)
+            const id = String(p._id || p);
+            if (p && p.status === 'online') onlineSet.add(id);
           }
           // include current user if online and member
           try {
-            const myId = String(props.me._id)
+            const myId = String(props.me._id);
             if (props.me && props.me.status === 'online') {
-              if (convo.raw.participants.some(p => String(p._id || p) === myId)) onlineSet.add(myId)
+              if (convo.raw.participants.some(p => String(p._id || p) === myId)) onlineSet.add(myId);
             }
-          } catch(e) {}
-          map[convId] = onlineSet.size
-          continue
+          } catch(_e) { /* ignored */ }
+          map[convId] = onlineSet.size;
+          continue;
         }
 
         // Fallback: fetch group resource if participants not populated
-        const groupId = convToGroup.value[convId] || (convo.raw.group && (convo.raw.group._id || convo.raw.group))
-        if (!groupId) { map[convId] = 0; continue }
+        const groupId = convToGroup.value[convId] || (convo.raw.group && (convo.raw.group._id || convo.raw.group));
+        if (!groupId) { map[convId] = 0; continue; }
         try{
-          const g = await api(`/api/groups/${groupId}`)
-          const onlineSet = new Set()
+          const g = await api(`/api/groups/${groupId}`);
+          const onlineSet = new Set();
           for (const m of (g.members || [])) {
-            const u = m.user
-            const id = String((u && (u._id || u)) || '')
-            const status = (typeof u === 'object') ? u.status : null
-            if (status === 'online') onlineSet.add(id)
+            const u = m.user;
+            const id = String((u && (u._id || u)) || '');
+            const status = (typeof u === 'object') ? u.status : null;
+            if (status === 'online') onlineSet.add(id);
           }
           // include current user if online and member
           try {
-            const myId = String(props.me._id)
+            const myId = String(props.me._id);
             if (props.me && props.me.status === 'online') {
               if ((g.members || []).some(m => String(m.user && (m.user._id || m.user)) === myId)) {
-                onlineSet.add(myId)
+                onlineSet.add(myId);
               }
             }
-          } catch (e) {}
-          map[convId] = onlineSet.size
-        }catch(err){ map[convId] = 0 }
+          } catch (_e) { /* ignored */ }
+          map[convId] = onlineSet.size;
+        }catch(err){ map[convId] = 0; }
       }
     }
-    groupOnline.value = map
-  }catch(e){ console.error('loadGroupCounts failed', e) }
+    groupOnline.value = map;
+  }catch(e){ console.error('loadGroupCounts failed', e); }
 }
 
 async function loadUnread() {
   try {
-    const convos = await api(`/api/conversations`)
-    const map = {}
+    const convos = await api('/api/conversations');
+    const map = {};
     for (const c of convos) {
-      if (c.type === 'group' && c.group) map[String(c._id)] = c.unreadCount || 0
+      if (c.type === 'group' && c.group) map[String(c._id)] = c.unreadCount || 0;
       else {
-        const other = (c.participants || []).find(p => String(p._id) !== String(props.me._id))
-        if (other) map[String(other._id)] = c.unreadCount || 0
+        const other = (c.participants || []).find(p => String(p._id) !== String(props.me._id));
+        if (other) map[String(other._id)] = c.unreadCount || 0;
       }
     }
-    unreadMap.value = map
-  } catch {}
+    unreadMap.value = map;
+  } catch (_err) { /* ignored */ }
 }
 
 async function refreshAll(){ 
-  await loadConversations()
-  await loadContacts()
+  await loadConversations();
+  await loadContacts();
 }
 
 async function searchUsers() {
   if (!searchQuery.value.trim()) {
-    searchResults.value = []
-    return
+    searchResults.value = [];
+    return;
   }
 
-  clearTimeout(searchTimeout)
+  clearTimeout(searchTimeout);
   searchTimeout = setTimeout(async () => {
-    searching.value = true
+    searching.value = true;
     try {
-      const results = await api(`/api/users/search?q=${encodeURIComponent(searchQuery.value)}`)
+      const results = await api(`/api/users/search?q=${encodeURIComponent(searchQuery.value)}`);
       // Filtrer l'utilisateur connecté et les contacts existants
-      const contactIds = contacts.value.map(c => c._id)
-      searchResults.value = results.filter(u => u._id !== props.me._id && !contactIds.includes(u._id))
+      const contactIds = contacts.value.map(c => c._id);
+      searchResults.value = results.filter(u => u._id !== props.me._id && !contactIds.includes(u._id));
     } catch (e) {
-      console.error('Erreur recherche:', e)
-      searchResults.value = []
+      console.error('Erreur recherche:', e);
+      searchResults.value = [];
     }
-    searching.value = false
-  }, 300)
+    searching.value = false;
+  }, 300);
 }
 
 async function addContact(userId) {
-  addingContact.value = userId
+  addingContact.value = userId;
   try {
     await api('/api/contacts', {
       method: 'POST',
       body: { contact_id: userId }
-    })
-    await loadContacts()
-    await loadConversations()
-    closeAddContact()
+    });
+    await loadContacts();
+    await loadConversations();
+    closeAddContact();
   } catch (e) {
-    console.error('Erreur ajout contact:', e)
-    alert('Erreur lors de l\'ajout du contact')
+    console.error('Erreur ajout contact:', e);
+    alert('Erreur lors de l\'ajout du contact');
   }
-  addingContact.value = null
+  addingContact.value = null;
 }
 
 function closeAddContact() {
-  showAddContact.value = false
-  searchQuery.value = ""
-  searchResults.value = []
+  showAddContact.value = false;
+  searchQuery.value = '';
+  searchResults.value = [];
 }
 
 // Fusionner les conversations et les contacts pour afficher tous les chats disponibles
 const allChats = computed(() => {
-  const chatMap = new Map()
+  const chatMap = new Map();
   
   // Ajouter toutes les conversations actives
   conversations.value.forEach(convo => {
@@ -376,9 +430,9 @@ const allChats = computed(() => {
         hasConversation: true,
         conversationId: convo.conversationId,
         isPinned: convo.isPinned || false
-      })
+      });
     }
-  })
+  });
   
   // Ajouter les contacts qui n'ont pas encore de conversation
   contacts.value.forEach(contact => {
@@ -387,99 +441,99 @@ const allChats = computed(() => {
         ...contact,
         hasConversation: false,
         isPinned: false
-      })
+      });
     }
-  })
+  });
   
-  const chats = Array.from(chatMap.values())
+  const chats = Array.from(chatMap.values());
   
   // Trier : conversations épinglées en premier
   chats.sort((a, b) => {
-    if (a.isPinned && !b.isPinned) return -1
-    if (!a.isPinned && b.isPinned) return 1
-    return 0
-  })
+    if (a.isPinned && !b.isPinned) return -1;
+    if (!a.isPinned && b.isPinned) return 1;
+    return 0;
+  });
   
-  return chats
-})
+  return chats;
+});
 
-onMounted(refreshAll)
+onMounted(refreshAll);
 
 watch(() => props.currentPeer?._id, async (id) => {
-  if (id) clearUnreadFor(String(id))
-  await loadUnread()
-})
+  if (id) clearUnreadFor(String(id));
+  await loadUnread();
+});
 
 watch(() => props.socket, (s) => {
-  if (!s) return
-  const onTyping = ({ from }) => { typingMap.value = { ...typingMap.value, [from]: true } }
-  const onTypingStop = ({ from }) => { const m = { ...typingMap.value }; delete m[from]; typingMap.value = m }
-  const onStatus = () => refreshAll()
+  if (!s) return;
+  const onTyping = ({ from }) => { typingMap.value = { ...typingMap.value, [from]: true }; };
+  const onTypingStop = ({ from }) => { const m = { ...typingMap.value }; delete m[from]; typingMap.value = m; };
+  const onStatus = () => refreshAll();
   const onNew = (m) => {
-    const from = String(m.sender)
-    const meId = String(props.me._id)
-    const activeId = String(props.currentPeer?._id || '')
+    const from = String(m.sender);
+    const meId = String(props.me._id);
+    const activeId = String(props.currentPeer?._id || '');
     // If message belongs to a conversation (group), use conversation id as key
     if (m.conversation) {
-      const convId = String(m.conversation)
-      if (convId === activeId) clearUnreadFor(convId)
-      else unreadMap.value = { ...unreadMap.value, [convId]: (unreadMap.value[convId] || 0) + 1 }
+      const convId = String(m.conversation);
+      if (convId === activeId) clearUnreadFor(convId);
+      else unreadMap.value = { ...unreadMap.value, [convId]: (unreadMap.value[convId] || 0) + 1 };
     } else {
       if (from !== meId) {
-        if (from === activeId) clearUnreadFor(from)
-        else unreadMap.value = { ...unreadMap.value, [from]: (unreadMap.value[from] || 0) + 1 }
+        if (from === activeId) clearUnreadFor(from);
+        else unreadMap.value = { ...unreadMap.value, [from]: (unreadMap.value[from] || 0) + 1 };
       }
     }
     // Recharger les conversations pour afficher le nouveau chat
-    loadConversations()
+    loadConversations();
     // refresh group counts when conversations change
-    loadGroupCounts().catch(()=>{})
-  }
-  s.on('typing', onTyping)
-  s.on('typing-stopped', onTypingStop)
-  s.on('user-status', onStatus)
-  s.on('message:new', onNew)
+    loadGroupCounts().catch(()=>{});
+  };
+  s.on('typing', onTyping);
+  s.on('typing-stopped', onTypingStop);
+  s.on('user-status', onStatus);
+  s.on('message:new', onNew);
   return () => {
-    s.off('typing', onTyping)
-    s.off('typing-stopped', onTypingStop)
-    s.off('user-status', onStatus)
-    s.off('message:new', onNew)
-  }
-}, { immediate: true })
+    s.off('typing', onTyping);
+    s.off('typing-stopped', onTypingStop);
+    s.off('user-status', onStatus);
+    s.off('message:new', onNew);
+  };
+}, { immediate: true });
 
 async function logout(){
-  try { await api('/api/auth/logout', { method: 'POST' }) } catch {}
-  window.location.reload()
+  try { await api('/api/auth/logout', { method: 'POST' }); } catch (_err) { /* ignored */ }
+  window.location.reload();
 }
 
 async function togglePin(chatId, conversationId) {
-  if (!conversationId) return
+  if (!conversationId) return;
   
   try {
-    const chat = allChats.value.find(c => c._id === chatId)
-    const isPinned = chat?.isPinned || false
+    const chat = allChats.value.find(c => c._id === chatId);
+    const isPinned = chat?.isPinned || false;
     
     if (isPinned) {
       await api(`/api/conversations/${conversationId}/unpin`, {
         method: 'POST',
         token: props.token
-      })
+      });
     } else {
       await api(`/api/conversations/${conversationId}/pin`, {
         method: 'POST',
         token: props.token
-      })
+      });
     }
     
-    await loadConversations()
+    await loadConversations();
   } catch (e) {
-    console.error('Erreur épinglage:', e)
+    console.error('Erreur épinglage:', e);
   }
 }
 
 const filtered = computed(() => {
-  if (!query.value) return allChats.value
-  const q = query.value.toLowerCase()
-  return allChats.value.filter(u => u.username.toLowerCase().includes(q))
-})
+  if (!query.value) return allChats.value;
+  const q = query.value.toLowerCase();
+  return allChats.value.filter(u => u.username.toLowerCase().includes(q));
+});
 </script>

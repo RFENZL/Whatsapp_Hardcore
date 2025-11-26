@@ -10,18 +10,18 @@ async function ensureAdminExists(group) {
   if (!group.admins || group.admins.length === 0) {
     // Prefer creator if still a member
     if (group.creator && group.members.some(m => String(m.user) === String(group.creator))) {
-      group.admins = [group.creator]
-      const member = group.members.find(m => String(m.user) === String(group.creator))
-      if (member) member.role = 'admin'
-      return
+      group.admins = [group.creator];
+      const member = group.members.find(m => String(m.user) === String(group.creator));
+      if (member) member.role = 'admin';
+      return;
     }
 
     // Otherwise pick the first remaining member
-    const firstMember = group.members.length > 0 ? group.members[0].user : null
+    const firstMember = group.members.length > 0 ? group.members[0].user : null;
     if (firstMember) {
-      group.admins = [firstMember]
-      const member = group.members.find(m => String(m.user) === String(firstMember))
-      if (member) member.role = 'admin'
+      group.admins = [firstMember];
+      const member = group.members.find(m => String(m.user) === String(firstMember));
+      if (member) member.role = 'admin';
     }
   }
 }
@@ -291,19 +291,19 @@ exports.removeMember = async (req, res) => {
 
   // Notifier via Socket.IO
   const io = getIO();
-    if (io) {
-      io.to(String(memberId)).emit('group:removed', { groupId: group._id });
+  if (io) {
+    io.to(String(memberId)).emit('group:removed', { groupId: group._id });
       
-      if (conversation) {
-        conversation.participants.forEach(participant => {
-          const pid = participant && participant._id ? String(participant._id) : String(participant);
-          io.to(pid).emit('group:member-removed', {
-            groupId: group._id,
-            removedMemberId: memberId
-          });
+    if (conversation) {
+      conversation.participants.forEach(participant => {
+        const pid = participant && participant._id ? String(participant._id) : String(participant);
+        io.to(pid).emit('group:member-removed', {
+          groupId: group._id,
+          removedMemberId: memberId
         });
-      }
+      });
     }
+  }
 
   res.json({ message: 'Member removed successfully' });
 };
