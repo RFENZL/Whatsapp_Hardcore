@@ -1,4 +1,4 @@
-const { expect, agent, createUser, uniqEmail, getPort } = require('./utils.js');
+const { expect, createUser, uniqEmail, getPort } = require('./utils.js');
 const { io: Client } = require('socket.io-client');
 
 describe('WebSocket handlers', function () {

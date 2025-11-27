@@ -2,10 +2,10 @@ const { expect, agent, createUser, uniqEmail } = require('./utils.js');
 
 describe('Messages branches', function(){
   this.timeout(40000);
-  let t1, u1, t2, u2;
+  let t1, u2;
   before(async () => {
-    ;({ token: t1, user: u1 } = await createUser(uniqEmail('mb1'),'msgBranch01'))
-    ;({ token: t2, user: u2 } = await createUser(uniqEmail('mb2'),'msgBranch02'));
+    ({ token: t1, user: u2 } = await createUser(uniqEmail('mb1'), 'msgBranch01'));
+    // t2 et u1 inutilisés, supprimés
   });
 
   it('GET messages pagination page>1', async () => {
