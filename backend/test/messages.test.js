@@ -2,12 +2,12 @@ const { expect, agent, createUser, uniqEmail } = require('./utils.js');
 
 describe('Messages REST', function () {
   this.timeout(40000);
-  let t1, u1, t2, u2;
+  let t1, t2, u2;
   before(async () => {
     const e1 = uniqEmail('m1');
-    const e2 = uniqEmail('m2')
-    ;({ token: t1, user: u1 } = await createUser(e1,'msgUser01'))
-    ;({ token: t2, user: u2 } = await createUser(e2,'msgUser02'));
+    const e2 = uniqEmail('m2');
+    ({ token: t1 } = await createUser(e1, 'msgUser01'));
+    ({ token: t2, user: u2 } = await createUser(e2, 'msgUser02'));
   });
 
   it('401 if missing auth', async () => {

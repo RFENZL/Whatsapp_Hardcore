@@ -39,8 +39,8 @@ async function teardownServer() {
   if (ioServer) ioServer.close();
   if (httpServer) await new Promise(res => httpServer.close(res));
   if (mongoose.connection.readyState) {
-    try { await mongoose.connection.dropDatabase(); } catch (_err) { /* ignored */ }
-    try { await mongoose.connection.close(); } catch (_err) { /* ignored */ }
+    try { await mongoose.connection.dropDatabase(); } catch (_) { /* ignored */ }
+    try { await mongoose.connection.close(); } catch { /* ignored */ }
   }
   if (mongo) await mongo.stop();
   app = undefined;
