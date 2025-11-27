@@ -1,0 +1,6 @@
+{
+  "PORT": 4000,
+  "MONGO_URI": "mongodb://mongo:27017/whatsapp_prod",
+  "JWT_SECRET": "change_this_secret",
+  "NODE_ENV": "production"
+}

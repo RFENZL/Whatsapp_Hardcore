@@ -1,0 +1,32 @@
+name: Simple CI
+on:
+  push:
+    branches: [ dev-quentin, main ]
+  pull_request:
+    branches: [ dev-quentin, main ]
+jobs:
+  build-test-lint:
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+      - name: Lint backend
+        run: cd backend && npm run lint
+      - name: Test backend
+        run: cd backend && npm test
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+      - name: Lint frontend
+        run: cd frontend && npm run lint
+      - name: Test frontend
+        run: cd frontend && npm test
