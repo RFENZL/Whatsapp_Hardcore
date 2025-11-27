@@ -2,11 +2,12 @@ const { expect, agent, createUser, uniqEmail } = require('./utils.js');
 
 describe('Users', function () {
   this.timeout(30000);
-  let t1, u2;
+  let t1, t2, u1, u2;
   before(async () => {
     const email1 = uniqEmail('u1');
-    ({ token: t1, user: u2 } = await createUser(email1, 'user01'));
-    // t2 et u1 inutilisés, supprimés
+    const email2 = uniqEmail('u2');
+    ({ token: t1, user: u1 } = await createUser(email1, 'user01'));
+    ({ token: t2, user: u2 } = await createUser(email2, 'user02'));
   });
 
   it('profile public', async () => {
