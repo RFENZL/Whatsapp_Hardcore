@@ -148,11 +148,10 @@ Documentation complète dans le dossier [`docs/`](./docs) :
 - **[architecture.md](./docs/architecture.md)** : Architecture client/serveur, WebSockets, flux de données
 - **[api.md](./docs/api.md)** : Documentation API REST et événements WebSocket
 - **[data-models.md](./docs/data-models.md)** : Schémas MongoDB détaillés
-- **[advanced-features.md](./docs/advanced-features.md)** : Fonctionnalités Socket.IO avancées (namespaces, rate limiting, heartbeat, etc.)
+- **[advanced-features.md](./docs/websocket-events.md)** : Fonctionnalités Socket.IO avancées (namespaces, rate limiting, heartbeat, etc.)
 - **[tests.md](./docs/tests.md)** : Stratégie de tests et couverture
 - **[user-guide.md](./docs/user-guide.md)** : Guide utilisateur
-- **[user-stories.md](./docs/user-stories.md)** : User stories et cas d'usage
-- **[dev-guide.md](./docs/dev-guide.md)** : Guide développeur et roadmap technique
+- **[dev-guide.md](./docs/developer-guide.md)** : Guide développeur et roadmap technique
 
 ## 🏗️ Architecture
 

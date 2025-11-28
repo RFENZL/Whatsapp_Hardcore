@@ -1,44 +1,28 @@
 # Guide utilisateur
 
-## Installation rapide (local)
+## Installation (mode simple développeur)
 
-1. Lancer MongoDB (en local ou via Docker).
-2. Backend :
-   ```bash
-   cd backend
-   cp .env.example .env
-   npm install
-   npm run dev
-   ```
-3. Frontend :
-   ```bash
-   cd frontend
-   cp .env.example .env
-   npm install
-   npm run dev
-   ```
+1. Cloner le dépôt
+2. Lancer MongoDB (via Docker ou localement)
+3. Dans `backend/` :
+   - copier `.env.example` vers `.env`
+   - ajuster les variables (URL Mongo, JWT secret, etc.)
+   - `npm install`
+   - `npm run dev`
+4. Dans `frontend/` :
+   - copier `config.production.json` si nécessaire
+   - `npm install`
+   - `npm run dev`
 
-## Flux de base
+## Utilisation
 
-1. **Inscription**
-   - Ouvrir l’URL du frontend.
-   - Cliquer sur l’onglet *Inscription*.
-   - Saisir email, nom d’utilisateur, mot de passe.
-   - Valider : vous êtes automatiquement connecté.
+- Ouvrir le frontend (par défaut sur http://localhost:5173 ou 3000 selon config)
+- Créer un compte (page d'inscription)
+- Se connecter
+- Ajouter des contacts
+- Créer une conversation ou un groupe
+- Envoyer des messages texte et média
+- Voir les états des messages (envoyé, livré, lu)
+- Gérer son profil (avatar, statut)
+- Paramétrer ses notifications (si interface fournie)
 
-2. **Connexion**
-   - Ouvrir l’onglet *Connexion*.
-   - Entrer email + mot de passe.
-
-3. **Démarrer une conversation**
-   - Utiliser la barre de recherche dans la sidebar pour trouver un utilisateur.
-   - Cliquer sur l’utilisateur pour ouvrir une conversation.
-   - Saisir un message dans la zone de texte en bas et envoyer.
-
-4. **Lire les statuts**
-   - Les avatars affichent un indicateur vert si l’utilisateur est en ligne.
-   - Sous le nom, vous pouvez voir s’il est *online* ou quand il a été vu pour la dernière fois.
-
-5. **Actions sur les messages**
-   - L’UI permet déjà d’afficher les messages, l’historique et les statuts envoyés/lu.
-   - Les fonctionnalités avancées (édition, suppression, épinglage, partage de fichiers) peuvent être activées à partir du backend existant.

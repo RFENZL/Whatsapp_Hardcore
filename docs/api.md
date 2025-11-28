@@ -1,326 +1,182 @@
-# Documentation API (REST & WebSocket)
+# Documentation de l'API REST
 
-## Authentification
 
-### POST `/api/auth/register`
+## Route `auth`
 
-Crée un nouvel utilisateur.
+Endpoints détectés :
 
-- Body : `{ email, username, password, avatar? }`
-- Réponse : `{ token, user }`
+| Méthode | Chemin |
+|--------|--------|
 
-### POST `/api/auth/login`
+| `POST` | `/auth/register` |
+| `POST` | `/auth/login` |
+| `POST` | `/auth/logout` |
+| `POST` | `/auth/refresh` |
+| `GET` | `/auth/verify-email` |
+| `POST` | `/auth/forgot-password` |
+| `POST` | `/auth/reset-password` |
+| `GET` | `/auth/me` |
 
-Connecte un utilisateur existant.
 
-- Body : `{ email, password }`
-- Réponse : `{ token, user }`
+## Route `contacts`
 
-### POST `/api/auth/logout`
+Endpoints détectés :
 
-Invalide la session côté client (le backend ne gère pas encore de liste de tokens invalidés, mais ce point est documenté pour extension).
+| Méthode | Chemin |
+|--------|--------|
 
----
+| `GET` | `/contacts/` |
+| `POST` | `/contacts/` |
+| `DELETE` | `/contacts/:contactId` |
+| `POST` | `/contacts/:contactId/block` |
+| `POST` | `/contacts/:contactId/unblock` |
+| `POST` | `/contacts/:contactId/favorite` |
+| `PUT` | `/contacts/:contactId/notes` |
 
-## Utilisateurs
 
-Toutes ces routes nécessitent un header : `Authorization: Bearer <jwt>`.
+## Route `conversations`
 
-### GET `/api/users`
+Endpoints détectés :
 
-Liste de tous les utilisateurs (hors mot de passe).
+| Méthode | Chemin |
+|--------|--------|
 
-### GET `/api/users/:id`
+| `POST` | `/conversations/direct` |
+| `GET` | `/conversations/` |
+| `GET` | `/conversations/:id` |
+| `POST` | `/conversations/:id/archive` |
+| `POST` | `/conversations/:id/unarchive` |
+| `POST` | `/conversations/:id/toggle-mute` |
+| `POST` | `/conversations/:id/pin` |
+| `POST` | `/conversations/:id/unpin` |
+| `DELETE` | `/conversations/:id` |
+| `POST` | `/conversations/:id/mark-read` |
+| `POST` | `/conversations/:id/background-color` |
 
-Détails d’un utilisateur.
 
-### PUT `/api/users/profile`
+## Route `groups`
 
-Met à jour le profil de l’utilisateur courant.
+Endpoints détectés :
 
-- Body possible : `{ username?, avatar? }` (extensions possibles : statut, bio, etc.)
+| Méthode | Chemin |
+|--------|--------|
 
-### GET `/api/users/search?query=...`
+| `POST` | `/groups/` |
+| `GET` | `/groups/:id` |
+| `PUT` | `/groups/:id` |
+| `POST` | `/groups/:id/members` |
+| `DELETE` | `/groups/:id/members/:memberId` |
+| `POST` | `/groups/:id/leave` |
+| `POST` | `/groups/:id/members/:memberId/promote` |
+| `PUT` | `/groups/:id/settings` |
+| `POST` | `/groups/:id/invite` |
+| `POST` | `/groups/join/:code` |
+| `DELETE` | `/groups/:id/invite` |
+| `POST` | `/groups/:id/ban` |
+| `POST` | `/groups/:id/unban` |
+| `GET` | `/groups/:id/history` |
+| `GET` | `/groups/:id/banned` |
 
-Recherche d’utilisateurs par `username` (utilisé côté frontend pour démarrer des conversations).
 
----
+## Route `images`
 
-## Messages
+Endpoints détectés :
 
-### GET `/api/messages/search/advanced?q=...&type=...&startDate=...&endDate=...`
+| Méthode | Chemin |
+|--------|--------|
 
-Recherche avancée de messages avec filtres multiples :
-- `q` : recherche textuelle (utilise l'index MongoDB)
-- `type` : filtrer par type (text, image, video, audio, file, system)
-- `startDate`, `endDate` : filtrer par plage de dates (format ISO)
-- `conversationId` : filtrer par conversation
-- `senderId` : filtrer par expéditeur
-- `page`, `limit` : pagination
+| `GET` | `/images/` |
 
-### POST `/api/messages/:id/pin`
 
-Épingle un message dans un groupe (admin seulement).
+## Route `medias`
 
-### DELETE `/api/messages/:id/pin`
+Endpoints détectés :
 
-Désépingle un message dans un groupe (admin seulement).
+| Méthode | Chemin |
+|--------|--------|
 
-### GET `/api/messages/conversation/:conversationId/pinned`
+| `POST` | `/medias/` |
+| `GET` | `/medias/conversation/:conversationId` |
+| `GET` | `/medias/stats` |
+| `GET` | `/medias/:id/stream` |
+| `GET` | `/medias/:id` |
+| `DELETE` | `/medias/:id` |
 
-Liste les messages épinglés d'une conversation.
 
-### POST `/api/messages`
+## Route `messages`
 
-Envoie un nouveau message (direct ou de groupe).
+Endpoints détectés :
 
-- Body : `{ recipient_id?, conversation_id?, content, type?, media_id?, replyTo?, mentions?, expiresAt? }`
-- Le message commence avec le statut 'pending', puis passe à 'sent' après création
-- statusTimestamps contient les timestamps pour chaque état (pending, sent, delivered, read)
-- `expiresAt` (optionnel) : date d'expiration pour les messages éphémères
+| Méthode | Chemin |
+|--------|--------|
 
-### GET `/api/messages/search?q=...&conversationId=...&page=...&limit=...`
+| `POST` | `/messages/` |
+| `GET` | `/messages/search` |
+| `GET` | `/messages/search/advanced` |
+| `GET` | `/messages/conversation/:conversationId/pinned` |
+| `GET` | `/messages/conversations` |
+| `GET` | `/messages/conversation/:conversationId` |
+| `POST` | `/messages/:messageId/forward` |
+| `POST` | `/messages/delivered` |
+| `GET` | `/messages/:user_id` |
+| `PUT` | `/messages/:id` |
+| `DELETE` | `/messages/:id` |
+| `POST` | `/messages/:id/read` |
+| `POST` | `/messages/:id/pin` |
+| `DELETE` | `/messages/:id/pin` |
 
-Recherche de messages par contenu textuel.
-- Utilise l'index texte MongoDB pour une recherche performante
-- Les résultats sont triés par pertinence puis par date
-- Paramètres :
-  - `q` (requis) : terme de recherche
-  - `conversationId` (optionnel) : filtrer par conversation
-  - `senderId` (optionnel) : filtrer par expéditeur
-  - `page`, `limit` : pagination
 
-### POST `/api/messages`
+## Route `notifications`
 
-Crée un nouveau message.
+Endpoints détectés :
 
-- Body : `{ recipient_id, content, clientId? }`
-- Réponse : le message complet (avec `_id`, `createdAt`, etc.).
+| Méthode | Chemin |
+|--------|--------|
 
-### GET `/api/messages/conversation/:otherId?page=&limit=`
+| `GET` | `/notifications/` |
+| `GET` | `/notifications/unread-count` |
+| `PUT` | `/notifications/mark-all-read` |
+| `DELETE` | `/notifications/clear-read` |
+| `PUT` | `/notifications/:id/read` |
+| `PUT` | `/notifications/:id/archive` |
+| `DELETE` | `/notifications/:id` |
 
-Retourne les messages d’une conversation one-to-one avec un autre utilisateur.
 
-### GET `/api/messages/conversations`
+## Route `reactions`
 
-Retourne la liste des conversations de l’utilisateur courant avec :
+Endpoints détectés :
 
-- `otherUser` : infos de l’autre utilisateur.
-- `lastMessage` : dernier message de la conversation.
-- `unread` : nombre de messages non lus.
+| Méthode | Chemin |
+|--------|--------|
 
-### PUT `/api/messages/:id`
+| `POST` | `/reactions/messages/:messageId` |
+| `GET` | `/reactions/messages/:messageId` |
+| `GET` | `/reactions/conversations/:conversationId/user` |
+| `DELETE` | `/reactions/:reactionId` |
 
-Met à jour un message (édition du contenu).
 
-### DELETE `/api/messages/:id`
+## Route `upload`
 
-Suppression logique (soft delete) d’un message.
+Endpoints détectés :
 
-### POST `/api/messages/:id/read`
+| Méthode | Chemin |
+|--------|--------|
 
-Marque un message comme lu.
+| `POST` | `/upload/` |
 
-*(Extensions prévues : recherche par texte, filtres date/expéditeur, messages épinglés, messages temporaires, etc.)*
 
----
+## Route `users`
 
-## Médias
+Endpoints détectés :
 
-### POST `/api/medias/upload`
+| Méthode | Chemin |
+|--------|--------|
 
-Upload d'un fichier média avec traitement automatique :
-- **Images** : compression automatique avec sharp (qualité 85%)
-- **Miniatures** : génération automatique pour images (200x200px)
-- **Déduplication** : vérifie le hash du fichier pour éviter les doublons
-- Types supportés : images, vidéos, audio, documents
-- Tailles maximales :
-  - Images : 10 MB
-  - Vidéos : 100 MB
-  - Audio : 20 MB
-  - Documents : 50 MB
-
-- Body (form-data) : `file` + `conversation_id?`
-- Réponse : objet Media avec `url`, `thumbnail`, `dimensions`, etc.
-
-### GET `/api/medias/conversation/:conversationId?type=&page=&limit=`
-
-Liste les médias d'une conversation avec pagination et filtrage par type.
-
-### GET `/api/medias/:id`
-
-Obtient les détails d'un média spécifique.
-
-### DELETE `/api/medias/:id`
-
-Suppression (soft delete) d'un média. Seul l'uploader peut supprimer.
-
-### GET `/api/medias/stats`
-
-Statistiques des médias de l'utilisateur (nombre et taille par type).
-
-### GET `/api/medias/:id/stream`
-
-Streaming d'un fichier média avec support du range header.
-- Idéal pour les vidéos et gros fichiers
-- Support de la lecture progressive
-- Headers: `Range: bytes=start-end`
-
----
-
-## Groupes
-
-### POST `/api/groups`
-
-Crée un nouveau groupe.
-- Body : `{ name, description?, avatar?, memberIds }`
-
-### GET `/api/groups/:id`
-
-Obtient les détails d'un groupe.
-
-### PUT `/api/groups/:id`
-
-Met à jour les informations du groupe (admin seulement).
-
-### POST `/api/groups/:id/members`
-
-Ajoute des membres au groupe.
-
-### DELETE `/api/groups/:id/members/:memberId`
-
-Retire un membre du groupe (admin seulement).
-
-### POST `/api/groups/:id/leave`
-
-Quitte le groupe.
-
-### POST `/api/groups/:id/members/:memberId/promote`
-
-Promeut un membre en administrateur (admin seulement).
-
-### PUT `/api/groups/:id/settings`
-
-Met à jour les paramètres du groupe (admin seulement).
-
-### POST `/api/groups/:id/invite`
-
-Génère un lien d'invitation pour rejoindre le groupe (admin seulement).
-- Body : `{ maxUses?, expiresInDays? }`
-- Retourne : `{ inviteLink, code, expiresAt, maxUses }`
-
-### POST `/api/groups/join/:code`
-
-Rejoint un groupe via un code d'invitation.
-
-### DELETE `/api/groups/:id/invite`
-
-Désactive le lien d'invitation du groupe (admin seulement).
-
-### POST `/api/groups/:id/ban`
-
-Bannit un membre du groupe (admin seulement).
-- Body : `{ userId, reason? }`
-- Le membre banni ne pourra plus rejoindre le groupe
-
-### POST `/api/groups/:id/unban`
-
-Débannit un membre (admin seulement).
-- Body : `{ userId }`
-
-### GET `/api/groups/:id/history`
-
-Obtient l'historique des membres du groupe (ajouts, départs, bannissements).
-
-### GET `/api/groups/:id/banned`
-
-Liste les membres bannis du groupe (admin seulement).
-
----
-
-## Jobs automatiques
-
-### Nettoyage des messages expirés
-
-Un job s'exécute automatiquement toutes les heures pour supprimer les messages éphémères dont la date d'expiration est dépassée.
-- Les messages avec `expiresAt` défini sont automatiquement marqués comme supprimés
-- Le contenu est remplacé par "[Message expiré]"
-
----
-
-## Conversations
-
-### POST `/api/conversations/direct`
-
-Crée une conversation directe (1-1).
-- Body : `{ participantId }`
-
-### GET `/api/conversations`
-
-Liste les conversations de l'utilisateur avec tri automatique :
-- Les conversations épinglées apparaissent en premier
-- Puis triées par date du dernier message
-- Retourne : `isPinned`, `isArchived`, `isMuted`, `unreadCount`
-
-### GET `/api/conversations/:id`
-
-Détails d'une conversation spécifique.
-
-### POST `/api/conversations/:id/archive`
-
-Archive une conversation.
-
-### POST `/api/conversations/:id/unarchive`
-
-Désarchive une conversation.
-
-### POST `/api/conversations/:id/pin`
-
-Épingle une conversation (apparaîtra en haut de la liste).
-
-### POST `/api/conversations/:id/unpin`
-
-Désépingle une conversation.
-
-### POST `/api/conversations/:id/toggle-mute`
-
-Active/désactive le mode silencieux pour une conversation.
-
-### POST `/api/conversations/:id/mark-read`
-
-Marque tous les messages d'une conversation comme lus.
-
-### DELETE `/api/conversations/:id`
-
-Supprime une conversation (pour l'utilisateur uniquement).
-
----
-
-## Événements WebSocket (Socket.io)
-
-### Connexion
-
-Le client se connecte avec :
-
-```js
-io(url, {
-  auth: { token: '<jwt>' }
-});
-```
-
-Si le token est invalide, la connexion est refusée.
-
-### `send-message`
-
-Payload : `{ to, content }`
-
-Réponse : message complet (via callback et broadcast aux clients concernés).
-
-### `typing`
-
-Payload : `{ to }`  
-Effet : émet `typing` puis `typing-stopped` côté destinataire après un timeout.
-
-### `user-status`, `user-online`, `user-offline`
-
-Événements broadcast informant des changements de présence.
+| `GET` | `/users/search` |
+| `GET` | `/users/sessions` |
+| `DELETE` | `/users/sessions/:sessionId` |
+| `POST` | `/users/sessions/delete-all` |
+| `GET` | `/users/:id` |
+| `GET` | `/users/` |
+| `PUT` | `/users/profile` |
+| `DELETE` | `/users/account` |

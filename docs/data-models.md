@@ -1,69 +1,182 @@
 # Modèles de données
 
-## Utilisateurs (`User`)
 
-Schéma MongoDB (simplifié) :
+## Contact
 
-- `email` : String obligatoire, unique.
-- `username` : String obligatoire, unique, min 3 caractères.
-- `password` : hashé avec **bcrypt**, non renvoyé au client.
-- `avatar` : URL ou base64 optionnel.
-- `status` : `'online' | 'offline'`.
-- `createdAt` : Date de création.
-- `lastSeen` : dernière fois vu en ligne.
-
-Extensions prévues par le sujet (non toutes implémentées) :
-
-- `bio` / `about` : texte de statut utilisateur.
-- `blockedUsers` : liste d’IDs d’utilisateurs bloqués.
-- `devices` : suivi des sessions / appareils connectés.
-
-## Messages (`Message`)
-
-Schéma MongoDB actuel :
-
-- `sender` : ObjectId vers `User` (expéditeur).
-- `recipient` : ObjectId vers `User` (destinataire).
-- `content` : String (max 5000).
-- `createdAt` : Date, indexée.
-- `status` : `'sent' | 'received' | 'read'`.
-- `edited` : booléen (message modifié).
-- `deleted` : booléen (suppression logique).
-
-Extensions possibles alignées sur le sujet :
-
-- `type` : `'text' | 'image' | 'video' | 'audio' | 'file'`.
-- `mediaUrl` / `thumbnailUrl` : gestion des médias.
-- `pinned` : booléen pour les messages épinglés.
-- `expiresAt` : pour messages temporaires.
-- `replyTo` : référence vers un autre message (citations).
-- `reactions` : tableau `{ userId, emoji }`.
-
-## Conversations (virtuel)
-
-Dans l’implémentation actuelle, la notion de conversation one-to-one est calculée côté backend par agrégation MongoDB :
+Champs principaux (extrait du schéma Mongoose) :
 
 ```js
-Message.aggregate([
-  { $match: { $or: [ { sender: userId }, { recipient: userId } ] } },
-  { $sort: { createdAt: -1 } },
-  { $group: { ... } },
-  ...
-])
+type: Boolean,
+type: Boolean,
+type: String,
+type: Date,
 ```
 
-Pour correspondre totalement au PDF, un schéma explicite `Conversation` pourrait contenir :
 
-- `participants` : liste d’utilisateurs.
-- `type` : `'direct' | 'group'`.
-- `title` / `photo` : pour les groupes.
-- `settings` : préférences de notification, archivage, etc.
-- `unreadCount` par utilisateur.
+## Conversation
 
-## Groupes
+Champs principaux (extrait du schéma Mongoose) :
 
-Non implémentés dans ce socle, mais prévus par le sujet. Un modèle `Group` / `Conversation` pourrait inclure :
+```js
+type: {
+type: String,
+type: Date,
+type: Map,
+type: Date,
+type: Date,
+type: Map,
+type: Map,
+```
 
-- `name`, `description`, `photo`.
-- `members` : `{ userId, role: 'owner' | 'admin' | 'moderator' | 'member' }`.
-- Historique des modifications, audit, etc.
+
+## Group
+
+Champs principaux (extrait du schéma Mongoose) :
+
+```js
+type: String,
+type: String,
+type: String,
+type: Date,
+type: String,
+type: String,
+type: Date,
+type: Date,
+type: String,
+type: String,
+type: Boolean,
+type: Date,
+type: Date,
+type: Number,
+type: Number,
+type: String,
+type: String,
+type: String,
+type: Date,
+type: Date,
+```
+
+
+## Media
+
+Champs principaux (extrait du schéma Mongoose) :
+
+```js
+type: {
+type: String,
+type: String,
+type: String,
+type: String,
+type: String,
+type: Number,
+width: { type: Number, default: null },
+height: { type: Number, default: null }
+type: Number,
+type: String,
+type: String,
+type: String,
+type: Map,
+type: Date,
+type: Date,
+```
+
+
+## Message
+
+Champs principaux (extrait du schéma Mongoose) :
+
+```js
+content: { type: String, maxlength: 5000, default: '' },
+type: {
+type: String,
+mediaUrl: { type: String, default: '' },
+mediaName: { type: String, default: '' },
+mediaSize: { type: Number, default: 0 },
+mediaMimeType: { type: String, default: '' },
+createdAt: { type: Date, default: Date.now, index: true },
+readAt: { type: Date, default: Date.now }
+status: { type: String, enum: ['pending', 'sent', 'delivered', 'read'], default: 'pending' },
+pending: { type: Date, default: Date.now },
+sent: { type: Date, default: null },
+delivered: { type: Date, default: null },
+read: { type: Date, default: null }
+edited: { type: Boolean, default: false },
+editedAt: { type: Date, default: null },
+deleted: { type: Boolean, default: false },
+deletedAt: { type: Date, default: null },
+expiresAt: { type: Date, default: null, index: true },
+isPinned: { type: Boolean, default: false },
+```
+
+
+## Notification
+
+Champs principaux (extrait du schéma Mongoose) :
+
+```js
+type: {
+type: String,
+type: String,
+type: String,
+type: String,
+type: String,
+type: String,
+type: Date,
+type: Date,
+type: Date,
+type: notificationData.type,
+```
+
+
+## Reaction
+
+Champs principaux (extrait du schéma Mongoose) :
+
+```js
+type: String,
+type: Date,
+```
+
+
+## Session
+
+Champs principaux (extrait du schéma Mongoose) :
+
+```js
+type: String,
+type: String,
+country: { type: String, default: '' },
+countryCode: { type: String, default: '' },
+region: { type: String, default: '' },
+city: { type: String, default: '' },
+timezone: { type: String, default: '' }
+type: Date,
+type: Date,
+type: Boolean,
+```
+
+
+## User
+
+Champs principaux (extrait du schéma Mongoose) :
+
+```js
+email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+username: { type: String, required: true, unique: true, minlength: 3, maxlength: 30, trim: true },
+password: { type: String, required: true, minlength: 6, select: false },
+avatar: { type: String, default: '' },
+bio: { type: String, default: '', maxlength: 500 },
+type: String,
+message: { type: String, default: '', maxlength: 100 },
+emoji: { type: String, default: '' },
+expiresAt: { type: Date, default: null }
+createdAt: { type: Date, default: Date.now },
+lastSeen: { type: Date, default: null },
+type: Map,
+refreshToken: { type: String, select: false },
+isEmailVerified: { type: Boolean, default: false },
+emailVerificationToken: { type: String, select: false },
+passwordResetToken: { type: String, select: false },
+passwordResetExpires: { type: Date, select: false },
+deletedAt: { type: Date, default: null, select: false }
+```
